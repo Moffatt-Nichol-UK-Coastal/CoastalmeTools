@@ -9,6 +9,7 @@ import numpy as np
 import glob
 import pandas as pd
 from datetime import datetime, timedelta
+from cme import *
 
 def sim_times(itters):
     start = datetime(1985,7,1)
@@ -20,14 +21,13 @@ def sim_times(itters):
 
     return t
 
-def collect_files(itters):
+def collect_files(itters, path):
     df = pd.DataFrame()
-    itter_l = np.arange(1,itters, 1)
+    itter_l = np.arange(1,itters+1, 1)
     itter_l = ["{:03d}".format(x) for x in itter_l]
     files = []
     path_ls = []
-    path = Path.cwd()
-    dir_path = path / 'out' / 'test_suite' / 'minimal_wave_angle_270'
+    dir_path = path
 
     for file in glob.glob(str(dir_path) + '**/*.tif', recursive=True):
     # print the path name of selected files
@@ -46,39 +46,50 @@ def collect_files(itters):
 
     return df
 
-def run():
-    itters = 11
-    t = sim_times(itters)
-    df = collect_files(itters)
+def collate_results(path,t):
+    itters = len(t)
+    # t = sim_times(itters)
+    t = pd.DatetimeIndex(t)
+    df = collect_files(itters, path)
     for index, row in df.iterrows():
         if len(row.paths) != len(t):
             raise ValueError('Not enough rasters for timesteps')
         else:
-            name = Path.cwd() /'out' / 'simple' / (row.variables + ".nc")
+            s_path = path / '_simple' 
+            name = (row.variables + ".nc")
             time = xr.Variable('time', t)
             test = xr.open_dataset(row.paths[0],  engine="rasterio")
             count = 0
             list_da = []
             for elm in row.paths:
                 geotiff_da = rioxarray.open_rasterio(elm, parse_coordinates=True)
+                geotiff_da = geotiff_da.rio.write_crs(
+                                27700,
+                                inplace=True,
+                                ).rio.set_spatial_dims(
+                                x_dim='x',
+                                y_dim='y'
+                                ).rio.write_coordinate_system(inplace=True)
                 da = geotiff_da.to_dataset('band')
                 # da = xr.open_dataset(elm, engine="rasterio", decode_coords='all')
                 da = da.rename({1: row.variables})
+                da.attrs['long_name'] = row.variables
                 dt = t[count]
 
                 da = da.assign_coords(time = dt)
                 da = da.expand_dims(dim="time")
 
+
+
                 list_da.append(da)
                 count += 1
             list = list_da
 
-            da = xr.concat(list, dim=time)
-
-            da.to_netcdf(name)
-        pass
-
-    pass
-
-if __name__ == "__main__":
-    run()
+            # ds = xr.concat(list, dim=time, coords='all')
+            ds = xr.combine_by_coords(list, combine_attrs='override')
+            try:
+                ds.to_netcdf(s_path / name)
+            except PermissionError:
+                os.mkdir(s_path)
+                ds.to_netcdf(s_path / name)
+    return s_path
