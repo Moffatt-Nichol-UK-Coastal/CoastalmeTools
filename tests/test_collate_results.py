@@ -11,6 +11,5 @@ cme = cme(ini_file, run_path)
 
 t = cme.out_times()
 
-collate_results(cme.out_path, t)
-
+collate_results(cme.out_path, t, mesh=True)
 pass

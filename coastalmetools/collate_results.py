@@ -1,25 +1,23 @@
 import xarray as xr
 import rioxarray
-import shutil
 import pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
 import os
 import numpy as np
+import time as timer
+import rasterio
 import glob
 import pandas as pd
 from datetime import datetime, timedelta
 from cme import *
+from nc_to_mesh import nc_to_mesh
+import meshio
+from netCDF4 import *
+from datetime import datetime, timedelta
+from cftime import num2date, date2num
+os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
 
-def sim_times(itters):
-    start = datetime(1985,7,1)
-    step = timedelta(days=1)
-    end = datetime(1985,7,1) + itters * step
-    start = start + step
-    t = np.arange(start,end,step).astype(datetime)
-    t = pd.DatetimeIndex(t)
-
-    return t
 
 def collect_files(itters, path):
     df = pd.DataFrame()
@@ -43,53 +41,101 @@ def collect_files(itters, path):
         path_ls.append(path_l)
 
     df['paths'] = path_ls
+    df = df.sort_values(by =['variables'])
+    df = df.reset_index(drop=True)
 
     return df
 
-def collate_results(path,t):
+def to_msh(inp_path, path, var, i):
+    n_path = path / '_nc' 
+    m_path = path / '_ncm'
+    name = (var + ".nc")
+
+    geotiff_da = rioxarray.open_rasterio(inp_path, parse_coordinates=True)
+    geotiff_da = geotiff_da.rio.write_crs(
+                    27700,
+                    inplace=True,
+                    ).rio.set_spatial_dims(
+                    x_dim='x',
+                    y_dim='y'
+                    ).rio.write_coordinate_system(inplace=True)
+    da = geotiff_da.to_dataset('band')
+    da = da.rename({1: var})
+    da.attrs['long_name'] = var
+
+    tnm = (var+ '_' + str(i) + ".nc")
+    da.to_netcdf((n_path / tnm))
+
+    mesh = nc_to_mesh((n_path / tnm))
+
+    return mesh
+
+def collate_results(path,t,vars=['all']):
+    if 'basement_elevation' not in vars:
+        vars.append('basement_elevation')
     itters = len(t)
-    # t = sim_times(itters)
-    t = pd.DatetimeIndex(t)
     df = collect_files(itters, path)
+    if 'all' not in vars: 
+        df = df[df["variables"].isin(vars)]
+    base_p = df.loc[df['variables'] == 'basement_elevation','paths'].values[0][0]
+    base = rasterio.open(base_p)
+    s_path = (path /"all_vars.nc")
+    rootgrp = Dataset(s_path, "w", format="NETCDF3_64BIT_OFFSET")
+    time = rootgrp.createDimension("time", None)
+    x = rootgrp.createDimension("x", base.width)
+    y = rootgrp.createDimension("y", base.height)
+
+    x = rootgrp.createVariable("x","f8",("x",))
+    y = rootgrp.createVariable("y","f8",("y",))
+    times = rootgrp.createVariable("time","f8",("time",))
+
+    rootgrp.description = "CoastalME Output"
+    rootgrp.history = "Created " + timer.ctime(timer.time())
+    rootgrp.source = "CoastalME Run"
+    rootgrp.title = "CoastalME Output"
+    crs = rootgrp.createVariable('GeoTransform', 'i4')
+    crs = base.transform
+
+    times.units = "hours since {}".format(str(t[0]))
+    times.calendar = "gregorian"
+    times.standard_name = 'time'
+    times.long_name = 'time'
+    times.axis = 'T'
+    times[:] = date2num(t,units=times.units,calendar=times.calendar)
+
+    x.axis = 'X'
+    y.axis = 'Y'
+    x[:] = np.arange(base.bounds[0],base.bounds[2], base.res[0])
+    y[:] = np.arange(base.bounds[1],base.bounds[3], base.res[1])
+    # Loop over variable
     for index, row in df.iterrows():
         if len(row.paths) != len(t):
             raise ValueError('Not enough rasters for timesteps')
         else:
-            s_path = path / '_simple' 
-            name = (row.variables + ".nc")
-            time = xr.Variable('time', t)
-            test = xr.open_dataset(row.paths[0],  engine="rasterio")
+            # create variable for netcdf
+            temp = rootgrp.createVariable(row.variables,"f4",("time","y","x"))
+
+            # Loop over timesteps
             count = 0
-            list_da = []
             for elm in row.paths:
-                geotiff_da = rioxarray.open_rasterio(elm, parse_coordinates=True)
-                geotiff_da = geotiff_da.rio.write_crs(
-                                27700,
-                                inplace=True,
-                                ).rio.set_spatial_dims(
-                                x_dim='x',
-                                y_dim='y'
-                                ).rio.write_coordinate_system(inplace=True)
-                da = geotiff_da.to_dataset('band')
-                # da = xr.open_dataset(elm, engine="rasterio", decode_coords='all')
-                da = da.rename({1: row.variables})
-                da.attrs['long_name'] = row.variables
-                dt = t[count]
-
-                da = da.assign_coords(time = dt)
-                da = da.expand_dims(dim="time")
-
-
-
-                list_da.append(da)
+                data_time = times[:].data[count]
+                # with rioxarray.open_rasterio(elm, parse_coordinates=True) as geotiff_da:
+                #     da = geotiff_da.to_dataset('band')
+                #     da = da[1]
+                #     temp[count] = da
+                # mesh = to_msh(elm, path,row.variables, count)
+                with rasterio.open(elm, 'r') as ds:
+                    arr = ds.read()
+                    # arr = arr[np.newaxis, : ,:]
+                    temp[count] = np.flip(arr[0],0)
                 count += 1
-            list = list_da
+            print('Done: ' + row.variables)
 
-            # ds = xr.concat(list, dim=time, coords='all')
-            ds = xr.combine_by_coords(list, combine_attrs='override')
-            try:
-                ds.to_netcdf(s_path / name)
-            except PermissionError:
-                os.mkdir(s_path)
-                ds.to_netcdf(s_path / name)
+    rootgrp.close()
     return s_path
+
+def explore_nc(path1, path2):
+    exp = Dataset(path1, "r")
+    my = Dataset(path2, "r")
+    times = num2date(my.variables['time'][:],my.variables['time'].units).data.tolist()
+    pass
