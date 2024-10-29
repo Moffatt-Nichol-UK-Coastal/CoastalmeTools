@@ -4,8 +4,8 @@ sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/../coastalmetool
 from cme import cme
 
 
-ini_file = r"/home/wilfc/coastalme_TESTING/in/test_suite/minimal_wave_angle_310/cme.ini"
-run_path= r"/home/wilfc/coastalme_TESTING/"
+ini_file = r"/home/wilfc/CoastalME/in/Exploration/Scen013/cme.ini"
+run_path= r"/home/wilfc/CoastalME/"
 
 cme = cme(ini_file, run_path)
 

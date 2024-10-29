@@ -11,7 +11,7 @@ class cme():
     Class for absorbing coastalME runs into python wrapper
     """
 
-    def __init__(self, ini=None, run_path=None):
+    def __init__(self, ini=None, run_path=None, ):
         Path.cwd()
         ini = Path(ini)
         paths = read_ini(ini)
