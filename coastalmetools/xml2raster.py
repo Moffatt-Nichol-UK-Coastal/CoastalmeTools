@@ -162,15 +162,15 @@ def create_tiff_from_tin_rio(triangles, output_tiff_path, output_base_path, x_re
 		dst.write(grid_base, 1)
 
 def xml2raster(xml_file, output_path, out_type='asc'):
-	output_tiff = output_path / "cape.asc"  # Path to save the output TIFF file
+	output_tiff = output_path / "gb.asc"  # Path to save the output TIFF file
 	output_base = output_path / "basement.asc"  # Path to save the output TIFF file
 
 	elevation_data = parse_landxml_tin(xml_file)
 	create_tiff_from_tin_rio(elevation_data, output_tiff, output_base)
 
 if __name__ == "__main__":
-	landxml_file = Path(r"/home/wilfc/CoastalME/in/Exploration/Scen013/Cape.xml") # Path to your LandXML file
+	landxml_file = Path(r"/home/wilfc/CoastalME/in/Exploration/Scen014/GB.xml") # Path to your LandXML file
 
-	out_p = Path(r"/home/wilfc/CoastalME/in/Exploration/Scen013")
+	out_p = Path(r"/home/wilfc/CoastalME/in/Exploration/Scen014")
 
 	xml2raster(landxml_file, out_p)

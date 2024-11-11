@@ -5,7 +5,7 @@ from cme import cme
 from collate_results import *
 from parse_results import *
 
-ini_file = r"/home/wilfc/CoastalME/in/Exploration/Scen013/cme.ini"
+ini_file = r"/home/wilfc/CoastalME/in/Exploration/Scen014/cme.ini"
 # run_path= r"/home/wilfc/CoastalME/coastalme_TESTING/"
 # ini_file = r"/home/wilfc/CoastalME/in/test_suite/Happisburgh/cme.ini"
 run_path= r"/home/wilfc/CoastalME/"
@@ -35,7 +35,7 @@ out_vars = [
     #  'flood_ss_mask',
     #  'flood_ssr_mask',
     #  'intervention_class',
-    #  'intervention_height',
+     'intervention_height',
     #  'inundation_mask',
      'landform_class',
     #  'local_cons_sediment_slope',
