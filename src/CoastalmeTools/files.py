@@ -10,8 +10,8 @@ from rasterio.errors import RasterioIOError
 import glob
 import pandas as pd
 from datetime import datetime, timedelta
-from Cme import *
-from nc_to_mesh import nc_to_mesh
+# from Cme import *
+from .nc_to_mesh import nc_to_mesh
 from netCDF4 import *
 from cftime import num2date, date2num
 import geopandas as gpd
@@ -22,7 +22,7 @@ from fiona import collection, errors
 os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
 
 
-def collect_files(itters, path, f_type):
+def collect_files(itters, path, f_type, depth=7):
     df = pd.DataFrame()
     itter_l = np.arange(1,itters+1, 1)
     itter_l = np.append(itter_l,999)
@@ -37,7 +37,7 @@ def collect_files(itters, path, f_type):
 
     temp = [x[:-7] for x in files]
     paths = list(set(temp))
-    vars = [fi.split('/')[7] for fi in paths]
+    vars = [fi.split('/')[depth] for fi in paths]
     df['variables'] = [x[:-1]for x in vars]
 
     for path in paths:
@@ -236,7 +236,6 @@ def rasters(t, df, path, vars, sed_top=True):
             if 'sumy' in locals():
                 sumy[dry] = np.nan
                 temp_wa[count] = np.flip(sumy[0],0)
-            
 
 def profiles(t, path):
     files = []
@@ -271,34 +270,6 @@ def profiles(t, path):
         plt.close()
     file_d['data'] = datas
     pass
-
-
-
-
-def collate_results(path,t,vars=['all'],vars_v=['all'],sed_top=True,crashed=True):
-    if 'basement_elevation' not in vars:
-        vars.append('basement_elevation')
-    if crashed:
-        finder = str(path/'basement_elevation*.tif')
-        completed = len(glob.glob(finder))
-        # if completed < len(t):
-        t = t[:completed]
-    print("found {} timesteps".format(len(t)))
-    itters = len(t)
-    if crashed:
-        delta = t[-1] - t[-2]
-        faux = t[-1] + delta
-        t.append(faux)
-        # t.append(datetime(9999, 9, 9, 0, 0))
-    df = collect_files(itters, path, 'tif')
-    df_v = collect_files(itters, path, 'shp')
-
-
-    vectors(t, df_v,path,vars_v)
-    rasters(t, df,path,vars)
-    profiles(t, path)
-
-    # rootgrp.close()
 
 def explore_nc(path1, path2):
     exp = Dataset(path1, "r")

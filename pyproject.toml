@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "CoastalmeTools"
+version = "0.0.0"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE.txt" }
+
+[tool.setuptools]

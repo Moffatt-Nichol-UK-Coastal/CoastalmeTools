@@ -1,17 +1,10 @@
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/../coastalmetools")
 from CoastalmeTools import *
 
 ini_file = r"/home/wilfc/CoastalME/in/Exploration/Scen016/cme.ini"
-# run_path= r"/home/wilfc/CoastalME/coastalme_TESTING/"
-# ini_file = r"/home/wilfc/CoastalME/in/test_suite/Happisburgh/cme.ini"
 run_path= r"/home/wilfc/CoastalME/"
 
 cme = Cme(ini_file, run_path)
 
-t = cme.out_times()
-print("Expected {} timesteps".format(len(t)))
 
 out_vars = [
     #  'active_zone',
@@ -85,6 +78,5 @@ out_vars_v = [
     # 'wave_setup',
      ]
 
-results = Cme.collate_results(cme.out_path, t, vars=out_vars, vars_v=out_vars_v, sed_top=True)
-# explore_nc(r'/home/wilfc/CoastalME/out/Exploration/Scen008/all_vars.nc', results)
+results = cme.collate_results(vars=out_vars, vars_v=out_vars_v)
 print('Done!')
