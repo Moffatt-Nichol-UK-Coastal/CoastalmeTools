@@ -276,3 +276,19 @@ def explore_nc(path1, path2):
     my = Dataset(path2, "r")
     times = num2date(my.variables['time'][:],my.variables['time'].units).data.tolist()
     pass
+
+def file_search(path, keyword=None, ext=None):
+    files = next(os.walk(path), (None, None, []))[2]
+    if ext:
+        files = [fi for fi in files if fi.endswith(ext)]
+    if keyword:
+        files = [fi for fi in files if keyword in fi]
+    if len(files) == 1:
+        out_path = path / files[0]
+    elif len(files) > 1:
+        out_path = [path / file for file in files]
+        # raise Exception("Multiple {}'s found".format(ext))
+    elif len(files) < 1:
+        # raise Exception("no {}'s found".format(ext))
+        out_path = None
+    return out_path

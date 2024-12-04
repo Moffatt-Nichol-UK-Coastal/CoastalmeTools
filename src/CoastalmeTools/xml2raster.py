@@ -168,9 +168,11 @@ def xml2raster(xml_file, output_path, out_type='asc'):
 	elevation_data = parse_landxml_tin(xml_file)
 	create_tiff_from_tin_rio(elevation_data, output_tiff, output_base)
 
-def genBase(src, output_path, out_type='asc'):
+def genBase(file, output_path, out_type='asc'):
 	output_tiff = output_path / "top.asc"  # Path to save the output TIFF file
 	output_base = output_path / "basement.asc"  # Path to save the output TIFF file
+
+	src = rasterio.open(file)
 
 	proj = src.crs
 	transform = src.transform
@@ -209,15 +211,16 @@ def genBase(src, output_path, out_type='asc'):
 		nodata=-9999
 	) as dst:
 		dst.write(grid_base, 1)
-	return uplift
-if __name__ == "__main__":
-	# file = Path(r"/home/wilfc/CoastalME/in/Exploration/Scen014/GB.xml") # Path to your LandXML file
-	file = Path(r"/home/wilfc/CoastalME/in/Exploration/Scen016/Cropped.tif") # Path to your LandXML file
+	return output_base, output_tiff, uplift
 
-	out_p = Path(r"/home/wilfc/CoastalME/in/Exploration/Scen016")
+# if __name__ == "__main__":
+# 	# file = Path(r"/home/wilfc/CoastalME/in/Exploration/Scen014/GB.xml") # Path to your LandXML file
+# 	file = Path(r"/home/wilfc/CoastalME/in/Exploration/Scen016/Cropped.tif") # Path to your LandXML file
 
-	if str(file).endswith(".xml"):
-		xml2raster(file, out_p)
-	else:
-		src = rasterio.open(file)
-		print("Uplifted by {}m to account for negative elevations".format(genBase(src, out_p)))
+# 	out_p = Path(r"/home/wilfc/CoastalME/in/Exploration/Scen016")
+
+# 	if str(file).endswith(".xml"):
+# 		xml2raster(file, out_p)
+# 	else:
+# 		src = rasterio.open(file)
+# 		print("Uplifted by {}m to account for negative elevations".format(genBase(src, out_p)))
