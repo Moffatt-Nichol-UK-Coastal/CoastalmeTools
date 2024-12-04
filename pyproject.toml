@@ -6,7 +6,9 @@ build-backend = "setuptools.build_meta"
 name = "CoastalmeTools"
 version = "0.0.0"
 readme = "README.md"
+dynamic = ["dependencies"]
 requires-python = ">=3.12"
 license = { file = "LICENSE.txt" }
 
-[tool.setuptools]
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
