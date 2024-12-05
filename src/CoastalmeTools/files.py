@@ -83,7 +83,7 @@ def vectors(t, df_v, path, vars_v):
         print('Done: ' + row.variables)
     print('Done: All Vectors')
 
-def rasters(t, df, path, vars, sed_top=True):
+def rasters(t, df, path, vars, sed_top=True, crashed=False):
     base_p = df.loc[df['variables'] == 'basement_elevation','paths'].values[0][0]
     base = rasterio.open(base_p)
     if sed_top == True:
@@ -131,6 +131,9 @@ def rasters(t, df, path, vars, sed_top=True):
     # Loop over variable
     with Dataset(s_path, "a", format="NETCDF3_64BIT_OFFSET") as appnd:
         for index, row in df.iterrows():
+            if not crashed:
+                if '999' in row.paths[-1]:
+                    del row.paths[-1]
             if len(row.paths) != len(t):
                 raise ValueError('Not enough rasters for timesteps')
             else:

@@ -5,12 +5,21 @@ import re
 import numpy as np
 from datetime import datetime, timedelta
 import glob
-# from pytimeparse.timeparse import timeparse
 from pytimeparse2 import parse as timeparse
 import subprocess
 from .files import *
 from .xml2raster import *
-# import .files as files
+
+class bcolors:
+	HEADER = '\033[95m'
+	OKBLUE = '\033[94m'
+	OKCYAN = '\033[96m'
+	OKGREEN = '\033[92m'
+	WARNING = '\033[93m'
+	FAIL = '\033[91m'
+	ENDC = '\033[0m'
+	BOLD = '\033[1m'
+	UNDERLINE = '\033[4m'
 
 class Cme():
 	"""
@@ -37,11 +46,47 @@ class Cme():
 		else:  
 			self.started = False
 
-	def run(self, ex_p):
+	def run(self, ex_p, ready=True):
+		if not ready:
+			self.preflight_checks()
 		shutil.copy(self.ini, self.exec_path)
 		command = f"{ex_p} --home={self.exec_path}"
-		subprocess.run(command, shell=True)
-		pass
+		completed_process = subprocess.run(command, shell=True)
+		if completed_process.returncode == 0:
+			self.started = True
+			self.crashed = False
+		else:
+			self.started = True
+			self.crashed = True
+		try:
+			self.retrieve_log()
+		except:
+			pass
+		return completed_process.returncode
+	
+	def retrieve_log(self):
+		level = int(self.find_config('Content of log file'))
+		dir_path = self.out_path
+		found_f = glob.glob(str(dir_path/"*.log"))
+		if type(found_f) == list:
+			if len(found_f) == 1:
+				found_f = Path(found_f[0])
+			else:
+				found_f = None
+		else:
+			found_f = None
+		self.log, self.errors, self.warnings = read_log(found_f, level)
+
+	def return_rescue(self):
+		if self.crashed:
+			print("")
+			er =  "\n".join("ln{!r}: {!r},".format(k, v) for k, v in self.errors.items())+ "\n"
+			wa = "\n".join("ln{!r}: {!r},".format(k, v) for k, v in self.warnings.items())+ "\n"
+			print(bcolors.FAIL +"CoastalME has crashed, these are the errors recorded in the log file:\n {}".format(str(er)) + bcolors.ENDC)
+			print(bcolors.WARNING +"CoastalME has crashed, these are the warnings recorded in the log file:\n {}".format(str(wa))+ bcolors.ENDC)
+		else:
+			print("Everything seemed to go okay my end!")
+
 
 	def preflight_checks(self, depth=7):
 		"""This can be run to aid the user in setting up a coastalMe run
@@ -161,8 +206,12 @@ class Cme():
 	
 	def collate_results(self,vars=['all'],vars_v=['all']):
 		# Check if CME has been run
-		crashed =True 
-		if not self.started:
+		if self.started:
+			try:
+				crashed = self.crashed
+			except AttributeError:
+				crashed = False
+		else:
 			return ValueError("Simulation not run, please run coastalme before using this command")
 		path = self.out_path
 		# Find expected output save points
@@ -201,9 +250,28 @@ class Cme():
 		# collate all vector outputs into a file
 		vectors(t, df_v,path,vars_v)
 		# collate all raster outputs into a file
-		rasters(t, df,path,vars)
+		rasters(t, df,path,vars, crashed=crashed,)
 		# Generate plots of any profiles that have been output
 		profiles(t, path)
+
+def read_log(path, level, verbose=True):
+	if not os.path.exists(path):
+		return FileNotFoundError
+	with open(path, 'r') as f:
+		file = f.read().splitlines()
+	if level >= 1:
+		error_lines = {idx: x for idx, x in enumerate(file) if 'ERROR' in x}
+		error_count = len(error_lines)
+		warning_lines = {idx: x for idx, x in enumerate(file) if 'WARNING' in x}
+		warning_count = len(warning_lines)
+	if level >= 2:
+		pass
+	if level >= 3:
+		pass
+	if verbose:
+		print(f'Log file found containing {error_count} errors, and {warning_count} warnings')
+	return file, error_lines, warning_lines
+
 
 def read_ini(path):
 	#What are we reading
@@ -280,5 +348,4 @@ def find_var(dict, query, case=False):
 		if ';' in out:
 			out = out.partition(';')[0]
 		
-				
 		return out 
