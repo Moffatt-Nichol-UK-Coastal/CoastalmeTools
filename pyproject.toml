@@ -4,7 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "CoastalmeTools"
-version = "0.0.0"
+version = "0.0.1"
+authors = [
+  { name="Wilf Chun", email="wchun@moffattnichol.com" },
+]
 readme = "README.md"
 dynamic = ["dependencies"]
 requires-python = ">=3.12"

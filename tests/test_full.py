@@ -1,4 +1,4 @@
-from CoastalmeTools import *
+from CoastalmeTools import Cme
 
 
 # Provide path of cme ini file
