@@ -2,7 +2,7 @@ from CoastalmeTools import Cme
 
 
 # Provide path of cme ini file
-ini_file = r"/home/wilfc/CoastalME/in/Exploration/Scen018/cme.ini"
+ini_file = r"/home/wilfc/CoastalME/in/Exploration/Scen017/cme.ini"
 # Provide path where we want cme to run, this is the --home cmd ln arg
 run_path= r"/home/wilfc/CoastalME/"
 # Provide path of cme executable
@@ -11,6 +11,7 @@ cme_path = r"/home/wilfc/CoastalME/cme"
 # Setup
 cme = Cme(ini_file, run_path)
 
+cme.tide_check()
 # check if were good to run, also do we want to do quick start
 cme.preflight_checks()
 

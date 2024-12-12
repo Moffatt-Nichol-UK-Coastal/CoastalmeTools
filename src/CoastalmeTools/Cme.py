@@ -10,6 +10,7 @@ import subprocess
 from windrose import WindroseAxes
 from .files import *
 from .xml2raster import *
+from .hydro import *
 
 class bcolors:
 	HEADER = '\033[95m'
@@ -47,7 +48,20 @@ class Cme():
 		else:  
 			self.started = False
 
-	def wave_check(self, invert=False, head_lines=9):
+	def tide_check(self, head_lines=9, t_step=6):
+		tides_p = self.find_config('Tide data')
+		# with open(tides_p, 'r') as f:
+		# 	file = f.read().splitlines()
+		# 	header = file[0:head_lines]
+		w_path = self.in_path.parent / "tides_plot.png"
+		tides = pd.read_csv(tides_p, sep=",", header=0, names=['swl'])#, skiprows=head_lines-1)
+		tides['times'] = pd.date_range('1990-1-1', periods=len(tides), freq='6h')
+		tides = tides.set_index('times', drop=True)
+		tides.plot()
+		plt.savefig(w_path)
+		pass
+
+	def wave_check(self, invert=False, grib_read=None, head_lines=4):
 		"""This plots a wave rose of the input wave files, there is also an ability to make minor adjustments to the wave data
 			NOTE in cme: Deep water wave orientation in input CRS: this is the oceanographic convention 
 			i.e. direction TOWARDS which the waves move (in degrees clockwise from north)
@@ -56,11 +70,48 @@ class Cme():
 			invert (bool, optional): _description_. Defaults to False.
 		"""
 		waves_p = self.find_config('wave height time series')
+		out_suf = ""
 		with open(waves_p, 'r') as f:
 			file = f.read().splitlines()
 			header = file[0:head_lines]
-		w_path = self.in_path.parent / "wave_rose.png"
-		waves = pd.read_csv(waves_p, sep=",", header=0, names=['height', 'orientation', 'period'], skiprows=head_lines-1)
+
+		lines = range(len(header))
+		df = pd.DataFrame(header, index=lines, columns=['string'])
+		# Categorise each of the line
+		df['type'] = "setting"
+		mask = (df.string.str.startswith(';')) | (df.string.str.startswith('#'))
+		df.loc[mask, 'type'] = 'comment'
+		mask = (df.string == "")
+		df.loc[mask, 'type'] = 'blank'
+
+		# now focus on the lines actually containing settings
+		mask = (df.type == "setting")
+		df['key'] = None
+		df['value'] = None
+		df['modified'] = False
+		content = df.loc[mask, "string"]
+		df.loc[mask, "key"] = df['string'].map(lambda x: parse_line(x)[0])
+		df.loc[mask, "value"] = df['string'].map(lambda x: parse_line(x)[1])
+		vars = dict(zip(list(df.loc[mask, "key"].values),list(df.loc[mask, "value"].values)))
+
+		if grib_read:
+			dir_path = self.in_path.parent 
+			wave_path = glob.glob(str(dir_path/"*.grib"))[0]
+			geo_loc, waves = wave_read(wave_path)
+			waves.to_csv(waves_p, sep=",", header=0, index=False)
+			
+			with open(waves_p, "r") as f:
+				temp = f.read().splitlines()
+			n_lines = len(temp)
+			vars['Number of time steps'] = str(n_lines)
+			header = [f'{x}:{y}' for x, y in vars.items()]
+			head_lines=len(header)
+			out_lines = header + temp
+
+			with open(waves_p, mode='wt', encoding='utf-8') as f:
+				f.write('\n'.join(out_lines))
+		else:
+			waves = pd.read_csv(waves_p, sep=",", header=0, names=['height', 'orientation', 'period'], skiprows=head_lines-1)
 		if invert:
 			waves.orientation = waves.orientation + 180
 			mask = waves.orientation > 360
@@ -73,9 +124,10 @@ class Cme():
 
 			with open(waves_p, mode='wt', encoding='utf-8') as f:
 				f.write('\n'.join(out_lines))
+			
+			out_suf='_cor'
 
-
-
+		w_path = self.in_path.parent / f"wave_rose{out_suf}.png"
 		ax = WindroseAxes.from_ax()
 		ax.bar(waves.orientation, waves.height, normed=True, opening=0.8)
 		ax.set_legend()
@@ -173,7 +225,7 @@ class Cme():
 			basement = False
 
 		# Would the user like to set up a quick start model
-		ans = input("Would you like to generate a quick start model \n this creates a model of uniform material using a topography/batymatry .tiff file \n (Y/N) ")
+		ans = input("Would you like to generate a quick start model \n this creates a model of uniform material using a topography/bathymatry .tiff file \n (Y/N) ")
 		if ans == "Y":
 			# Search input folder for any tiffs
 			f_list = file_search(dir_path,None,'tif')
@@ -208,13 +260,20 @@ class Cme():
 		
 		ans = input("Would you like to produce a wave rose (Y/N) ")
 		if ans == "Y":
-			try:
-				self.wave_check()
+			ans = input("Do you have a grib file that you would like to read? (Y/N)")
+			if ans == "Y":
+				self.wave_check(invert=False,grib_read=True)
 				print("Please check the wave rose saved into the run input folder")
 				ans = input("Do the wave direction convention need correcting? (Y/N)")
 				self.wave_check(invert=True)
-			except FileNotFoundError:
-				print('No wave file found')
+			if ans == "N":
+				try:
+					self.wave_check()
+					print("Please check the wave rose saved into the run input folder")
+					ans = input("Do the wave direction convention need correcting? (Y/N)")
+					self.wave_check(invert=True)
+				except FileNotFoundError:
+					print('No wave file found')
 
 		write_ini(self.in_path,self.config_df)
 		print("Saved input file")
