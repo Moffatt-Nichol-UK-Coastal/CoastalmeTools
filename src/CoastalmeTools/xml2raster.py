@@ -3,6 +3,7 @@ import rasterio
 from pathlib import Path
 from lxml import etree
 from scipy.interpolate import griddata
+from rasterio.enums import Resampling
 
 def parse_landxml_tin(file_path):
 	"""
@@ -173,9 +174,18 @@ def genBase(file, output_path, out_type='asc'):
 	output_base = output_path / "basement.asc"  # Path to save the output TIFF file
 
 	src = rasterio.open(file)
+	res = src.res[0]
+	ans = float(input("Current file has a {}m cell size, what would you like to change that to: ".format(str(res))))
+	if ans > res:
+		sf = ans/res
+	else:
+		sf = 1
 
 	proj = src.crs
-	transform = src.transform
+	transform = src.transform * src.transform.scale(
+        (1 * sf),
+        (1 * sf)
+    )
 	elevation_array = src.read(1).round(3)
 	if elevation_array.min() < 0:
 		uplift =  np.round(np.abs(elevation_array.min()) + 50,0)
@@ -188,8 +198,9 @@ def genBase(file, output_path, out_type='asc'):
 			output_tiff,
 			'w',
 			driver='AAIGrid',
-			height= elevation_array.shape[0],
-			width= elevation_array.shape[1],
+			height= int(elevation_array.shape[0]/sf),
+			width= int(elevation_array.shape[1]/sf),
+			resampling=Resampling.bilinear,
 			count=1,
 			dtype=elevation_array.dtype,
 			crs='EPSG:27700',  # Assuming WGS84, modify if necessary
@@ -202,8 +213,9 @@ def genBase(file, output_path, out_type='asc'):
 		output_base,
 		'w',
 		driver='AAIGrid',
-		height= elevation_array.shape[0],
-		width= elevation_array.shape[1],
+		height= int(elevation_array.shape[0]/sf),
+		width= int(elevation_array.shape[1]/sf),
+		resampling=Resampling.bilinear,
 		count=1,
 		dtype=elevation_array.dtype,
 		crs='EPSG:27700',  # Assuming WGS84, modify if necessary
