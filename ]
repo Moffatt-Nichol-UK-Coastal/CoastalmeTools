@@ -6,23 +6,24 @@ import numpy as np
 from datetime import datetime, timedelta
 import glob
 import time
+import threading
 import os
 from pytimeparse2 import parse as timeparse
 from contextlib import chdir
 import subprocess
 from windrose import WindroseAxes
 import matplotlib
-from bokeh.command.bootstrap import main
-import multiprocessing
+from bokeh.plotting import figure, curdoc, show
+from bokeh.models import ColumnDataSource, RangeTool
+from bokeh.layouts import column
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
 matplotlib.use("QtAgg")
 import matplotlib.pyplot as plt
 from .files import collect_files, vectors, rasters, profiles, file_search
 from .xml2raster import genBase
 from .hydro import wave_read
-
-# from .monitor import monitor_run
-from .tools import find_var
 
 
 class bcolors:
@@ -35,6 +36,20 @@ class bcolors:
     ENDC = "\033[0m"
     BOLD = "\033[1m"
     UNDERLINE = "\033[4m"
+
+
+class MyHandler(FileSystemEventHandler):
+    def on_created(self, event):
+        print(f"File created: {event.src_path}")
+
+    def on_deleted(self, event):
+        print(f"File deleted: {event.src_path}")
+
+    def on_modified(self, event):
+        print(f"File modified: {event.src_path}")
+
+    def on_moved(self, event):
+        print(f"File moved: {event.src_path} to {event.dest_path}")
 
 
 class Cme:
@@ -175,51 +190,28 @@ class Cme:
         Returns:
             int: return code from CME run
         """
-
         if not ready:
             self.preflight_checks()
         if clear:
             shutil.rmtree(self.out_path)
             os.makedirs(self.out_path)
         shutil.copy(self.ini, self.exec_path)
-
-        # Lets put together our CME run command
         params = [str(ex_p)]
         params.append("--home=")
         params.append(str(self.exec_path))
-        try:
-            with chdir(self.exec_path):
-                completed_process = subprocess.Popen(params)
-
-            # Wait and setup our monitoring proccess for run in the background
-            m_path = Path(
-                "/Users/wilfchun/Documents/GitHub/CoastalmeTools/src/CoastalmeTools/monitor.py"
+        command = f"{ex_p} --home={self.exec_path}"
+        # completed_process = subprocess.run(command, shell=True)
+        with chdir(self.exec_path):
+            completed_process = subprocess.Popen(params)
+            time.sleep(5)
+            stop_event = threading.Event()
+            background_thread = threading.Thread(
+                target=self.monitor_run, args=(stop_event,), daemon=True
             )
-            start = find_var(self.config, "Simulation start date")
-            start_time = datetime.strptime(start, "%H-%M-%S %d/%m/%Y").timestamp()
-            start_time = str(start_time)
-            # Start our monitoring
-            monitor_proccess = subprocess.Popen(
-                [
-                    "bokeh",
-                    "serve",
-                    "--show",
-                    m_path,
-                    "--args",
-                    str(self.out_path),
-                    start_time,
-                ]
-            )
-
-            # Wait untill CME run ends then sent stop event to bg thread
+            background_thread.start()
             completed_process.communicate()
-            monitor_proccess.kill()
-        except KeyboardInterrupt:
-            # Ensure that we are killing all proccesses when we crash out
-            completed_process.kill()
-            monitor_proccess.kill()
-
-        # See what the outcome of the CME run is
+            stop_event.set()
+            background_thread.join()
         if completed_process.returncode == 0:
             self.started = True
             self.crashed = False
@@ -510,12 +502,173 @@ class Cme:
         # Generate plots of any profiles that have been output
         profiles(t, path, df)
 
+    def monitor_run(self, stop_event, interval=2):
+        """
+        TODO this takes in the runpath of coastalme, once a run has been started
+        """
+        col_widths = [
+            4,
+            7,
+            7,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            5,
+            4,
+            4,
+            4,
+            7,
+            6,
+            6,
+            7,
+            6,
+            7,
+            4,
+            4,
+            4,
+            7,
+            6,
+            9,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            6,
+        ]
+        coln = [
+            "timestep",
+            "elapsed hours",
+            "elapsed years",
+            "avg sea depth",
+            "potential platform erod % sea area",
+            "potential platform erod all sea avg",
+            "potential platform erod area avg",
+            "actual platform % sea area",
+            "actual platform erod all sea avg",
+            "actual platform erod area avg",
+            "actual platform erod sea avg F",
+            "actual platform erod sea avg S",
+            "actual platform erod sea avg C",
+            "potential beach erod % sea area",
+            "potential beach erod all sea avg",
+            "potential beach erod area avg",
+            "actual beach erod % sea area",
+            "actual beach erod all sea avg",
+            "actual beach erod area avg",
+            "actual beach erod sea avg F",
+            "actual beach erod sea avg S",
+            "actual beach erod sea avg C",
+            "actual beach depo % sea area",
+            "actual beach depo all sea avg",
+            "actual beach depo area avg",
+            "actual beach depo sea avg S",
+            "actual beach depo sea avg C",
+            "input F",
+            "input S",
+            "input C",
+            "cliff collapse erod F",
+            "cliff collapse erod S",
+            "cliff collapse erod C",
+            "cliff collapse depo S",
+            "cliff collapse depo C",
+            "susp sed F",
+        ]
+        # now we need to try and open the out file
+        while True:
+            f_path = file_search(self.out_path, "", "out")
+            if f_path is not None:
+                break
+            time.sleep(2)
+        # We now have a file
+        # Now let's generate a plot
+        # Set up figure
+        p = figure(
+            width=800,
+            height=500,
+            tools="xpan,xwheel_zoom,xbox_zoom,reset",
+            x_axis_type="datetime",
+            x_axis_location="bottom",
+            y_axis_location="right",
+            window_axis="x",
+        )
+        # p.x_range.follow = "end"
+        # p.x_range.follow_interval = 100
+        # p.x_range.range_padding = 0
+        # Get initial data
+        f_path = file_search(self.out_path, "", "out")
+        df = pd.read_fwf(
+            f_path, widths=col_widths, skiprows=115, header=None, names=coln
+        )
+        last_size = df.shape[0]
+        source1 = ColumnDataSource(data=df.to_dict(orient="list"))
 
-def monitor_run(stop_event):
-    with chdir(
-        Path("/Users/wilfchun/Documents/GitHub/CoastalmeTools/src/CoastalmeTools/")
-    ):
-        main(["bokeh", "serve", "--show", "monitor.py"])
+        p.line("elapsed hours", "avg sea depth", source=source1, line_width=2)
+
+        select = figure(
+            title="Drag the middle and edges of the selection box to change the range above",
+            height=130,
+            width=800,
+            x_axis_type="datetime",
+            y_axis_type=None,
+            tools="",
+            toolbar_location=None,
+            background_fill_color="#efefef",
+        )
+        select.x_range.range_padding = 0
+        select.x_range.bounds = "auto"
+
+        range_tool = RangeTool(x_range=p.x_range, start_gesture="pan")
+        range_tool.overlay.fill_color = "navy"
+        range_tool.overlay.fill_alpha = 0.2
+
+        select.line("date", "close", source=source1)
+        select.ygrid.grid_line_color = None
+        select.add_tools(range_tool)
+
+        show(column(p, select))
+        # Now we should have an initial plot
+
+        # lets start the routine of updating until we are otherwise told
+        while not stop_event.is_set():
+            # Now we set up event handler
+            event_handler = MyHandler()
+            observer = Observer()
+            observer.schedule(event_handler, path=f_path, recursive=False)
+            observer.start()
+            try:
+                while True:
+                    # time.sleep(interval)
+                    # now read in the data
+                    df = pd.read_fwf(
+                        f_path, widths=col_widths, skiprows=115, header=None, names=coln
+                    )
+                    # Do we have any more data than we did last time?
+                    if df.shape[0] != last_size:
+                        # Let's record the size of data we have now
+                        this_size = df.shape[0]
+                        # Remove the data we have already seen and hopfuly plotted
+                        df = df.iloc[last_size:]
+                        # Now lets update our plots source
+                        source1.stream(df.to_dict(orient="list"))
+                        # Now refresh the display
+                        show(p)
+                        # Now account for the data we have just plot
+                        last_size = this_size
+            except KeyboardInterrupt:
+                observer.stop()
+            observer.join()
+
+            # fig.pause(0.05)
+        # plt.show()
 
 
 def read_log(path, level, verbose=True):
@@ -621,3 +774,25 @@ def parse_line(in_str):
     split = [x for x in split if not x == ":"]
     split = [re.sub(" +", " ", x) for x in split]
     return split
+
+
+def find_var(dict, query, case=False):
+    if case:
+        results = {key: val for key, val in dict.items() if re.search(query, key)}
+    else:
+        results = {key: val for key, val in dict.items() if re.search(query, key, re.I)}
+    if len(results) == 0:
+        raise KeyError("No matches for: {}".format(query))
+    if len(results) != 1:
+        raise KeyError(
+            "Multiple matches for variable in input file: {}".format(
+                list(results.keys())
+            )
+        )
+
+    out = next(iter(results.values()))
+
+    if ";" in out:
+        out = out.partition(";")[0]
+
+    return out

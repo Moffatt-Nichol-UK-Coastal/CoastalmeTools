@@ -1,17 +1,29 @@
 from CoastalmeTools import Cme
+import platform
 
 
-# Provide path of cme ini file
-ini_file = r"/home/wilfc/CoastalME/in/Exploration/Scen017/cme.ini"
-# Provide path where we want cme to run, this is the --home cmd ln arg
-run_path= r"/home/wilfc/CoastalME/"
-# Provide path of cme executable
-cme_path = r"/home/wilfc/CoastalME/coastalme/cme"
+if platform.system() == "Darwin":
+    # Provide path of cme ini file
+    ini_file = (
+        r"/Users/wilfchun/Documents/GitHub/CoastalMe/in/Exploration/Scen014/cme.ini"
+    )
+    # Provide path where we want cme to run, this is the --home cmd ln arg
+    run_path = r"/Users/wilfchun/Documents/GitHub/CoastalMe/"
+    # Provide path of cme executable
+    cme_path = r"/Users/wilfchun/Documents/GitHub/CoastalMe/cme"
+
+elif platform.system() == "Linux":
+    # Provide path of cme ini file
+    ini_file = r"/home/wilfc/CoastalME/in/Exploration/Scen017/cme.ini"
+    # Provide path where we want cme to run, this is the --home cmd ln arg
+    run_path = r"/home/wilfc/CoastalME/"
+    # Provide path of cme executable
+    cme_path = r"/home/wilfc/CoastalME/coastalme/cme"
 
 # Setup
 cme = Cme(ini_file, run_path)
 
-cme.tide_check()
+# cme.tide_check()
 # check if were good to run, also do we want to do quick start
 # cme.preflight_checks()
 
@@ -19,28 +31,28 @@ cme.tide_check()
 cme.run(cme_path)
 
 out_vars = [
-     'landform_class',
-     'polygon_raster',
-     'rcoast',
-     'rcoast_normal',
-     'top_elevation',
-     'total_actual_beach_erosion',
-     'total_actual_platform_erosion',
-     'wave_height',
-     ]
+    "landform_class",
+    "polygon_raster",
+    "rcoast",
+    "rcoast_normal",
+    "top_elevation",
+    "total_actual_beach_erosion",
+    "total_actual_platform_erosion",
+    "wave_height",
+]
 
 out_vars_v = [
-    'breaking_wave_height',
-    'cliff_notch',
-    'coast',
-    'coast_curvature',
-    'invalid_normals',
-    'normals',
-    'wave_energy',
-     ]
+    "breaking_wave_height",
+    "cliff_notch",
+    "coast",
+    "coast_curvature",
+    "invalid_normals",
+    "normals",
+    "wave_energy",
+]
 
 # Generate netcdf
 results = cme.collate_results(vars=out_vars, vars_v=out_vars_v)
 # cme.return_rescue()
 # All Done
-print('Done!')
+print("Done!")
