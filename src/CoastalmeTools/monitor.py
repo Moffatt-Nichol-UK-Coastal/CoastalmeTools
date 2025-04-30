@@ -1,6 +1,6 @@
 from bokeh.driving import count
-from bokeh.layouts import column, gridplot, row
-from bokeh.models import ColumnDataSource, Select, Slider
+from bokeh.layouts import column, gridplot
+from bokeh.models import ColumnDataSource
 from bokeh.plotting import curdoc, figure
 import sys
 
@@ -9,7 +9,6 @@ from pathlib import Path
 import pandas as pd
 import time
 import os
-import humanize
 
 
 def file_search(path, keyword=None, ext=None):
@@ -160,12 +159,12 @@ r = figure(
     y_axis_location="right",
     title="simulation efficency",
     y_axis_label="sec",
+    # legend_label="Objects",
     # window_axis="x",
 )
 r.x_range.follow = "end"
 r.x_range.follow_interval = timedelta(days=30)
 r.x_range.range_padding = 0
-r.legend.location = "top_left"
 
 r.scatter(
     x="simTime",
@@ -184,6 +183,7 @@ r.line(
     source=calc_source,
     legend_label="average timestep calculation time",
 )
+r.legend.location = "top_left"
 
 last_size = 0
 last_time = time.perf_counter()
@@ -249,7 +249,7 @@ curdoc().add_root(
     )
 )
 # Start recursive plot update
-curdoc().add_periodic_callback(time_update, 1000)
+curdoc().add_periodic_callback(time_update, 100)
 curdoc().title = "monitor"
 
 

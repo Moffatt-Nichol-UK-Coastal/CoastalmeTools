@@ -5,7 +5,6 @@ import re
 import numpy as np
 from datetime import datetime, timedelta
 import glob
-import time
 import os
 from pytimeparse2 import parse as timeparse
 from contextlib import chdir
@@ -13,9 +12,8 @@ import subprocess
 from windrose import WindroseAxes
 import matplotlib
 from bokeh.command.bootstrap import main
-import multiprocessing
 
-matplotlib.use("QtAgg")
+matplotlib.use("TKAgg")
 import matplotlib.pyplot as plt
 from .files import collect_files, vectors, rasters, profiles, file_search
 from .xml2raster import genBase
@@ -77,7 +75,7 @@ class Cme:
         plt.savefig(w_path)
         pass
 
-    def wave_check(self, invert=False, grib_read=None, head_lines=4):
+    def wave_check(self, invert=False, grib_read=None, cco_read=None, head_lines=4):
         """This plots a wave rose of the input wave files, there is also an ability to make minor adjustments to the wave data
             NOTE in cme: Deep water wave orientation in input CRS: this is the oceanographic convention
             i.e. direction TOWARDS which the waves move (in degrees clockwise from north)
@@ -111,6 +109,7 @@ class Cme:
         vars = dict(
             zip(list(df.loc[mask, "key"].values), list(df.loc[mask, "value"].values))
         )
+        cco_read = True
 
         if grib_read:
             dir_path = self.in_path.parent
@@ -128,6 +127,41 @@ class Cme:
 
             with open(waves_p, mode="wt", encoding="utf-8") as f:
                 f.write("\n".join(out_lines))
+        elif cco_read:
+            ts = 6
+            cco_path = file_search(self.in_path.parent, "wave", "txt")
+            waves = pd.read_csv(
+                cco_path,
+                sep="\t",
+                # header=True,
+                # names=["height", "orientation", "period"],
+                # skiprows=head_lines - 1,
+            )
+            waves = waves[
+                ["Date/Time (GMT)", "Hs (Hm0)(m)", "Dirp (degrees)", "Tp (s)"]
+            ]
+            waves = waves.rename(
+                columns={
+                    "Date/Time (GMT)": "time",
+                    "Hs (Hm0)(m)": "height",
+                    "Dirp (degrees)": "orientation",
+                    "Tp (s)": "period",
+                }
+            )
+            waves["time"] = pd.to_datetime(waves["time"])
+            waves = waves.astype(
+                {
+                    "height": np.float64,
+                    "orientation": np.float64,
+                    "period": np.float64,
+                }
+            )
+            waves = waves.set_index("time")
+            mask = np.abs(waves) > 900
+            waves[mask] = np.nan
+            waves = waves.dropna()
+            waves = waves.asfreq(f"{ts}h", method="bfill")
+
         else:
             waves = pd.read_csv(
                 waves_p,
@@ -179,7 +213,10 @@ class Cme:
         if not ready:
             self.preflight_checks()
         if clear:
-            shutil.rmtree(self.out_path)
+            try:
+                shutil.rmtree(self.out_path)
+            except FileNotFoundError:
+                pass
             os.makedirs(self.out_path)
         shutil.copy(self.ini, self.exec_path)
 
@@ -248,36 +285,41 @@ class Cme:
 
     def return_rescue(self):
         """Use this to print a coloured summery of any errors in the log file if cme crashed"""
-        if self.crashed:
-            print("")
-            er = (
-                "\n".join("ln{!r}: {!r},".format(k, v) for k, v in self.errors.items())
-                + "\n"
-            )
-            wa = (
-                "\n".join(
-                    "ln{!r}: {!r},".format(k, v) for k, v in self.warnings.items()
+        try:
+            if self.crashed:
+                print("")
+                er = (
+                    "\n".join(
+                        "ln{!r}: {!r},".format(k, v) for k, v in self.errors.items()
+                    )
+                    + "\n"
                 )
-                + "\n"
-            )
-            print(
-                bcolors.FAIL
-                + "CoastalME has crashed, these are the errors recorded in the log file:\n {}".format(
-                    str(er)
+                wa = (
+                    "\n".join(
+                        "ln{!r}: {!r},".format(k, v) for k, v in self.warnings.items()
+                    )
+                    + "\n"
                 )
-                + bcolors.ENDC
-            )
-            print(
-                bcolors.WARNING
-                + "CoastalME has crashed, these are the warnings recorded in the log file:\n {}".format(
-                    str(wa)
+                print(
+                    bcolors.FAIL
+                    + "CoastalME has crashed, these are the errors recorded in the log file:\n {}".format(
+                        str(er)
+                    )
+                    + bcolors.ENDC
                 )
-                + bcolors.ENDC
-            )
-        else:
-            print("Everything seemed to go okay my end!")
+                print(
+                    bcolors.WARNING
+                    + "CoastalME has crashed, these are the warnings recorded in the log file:\n {}".format(
+                        str(wa)
+                    )
+                    + bcolors.ENDC
+                )
+            else:
+                print("Everything seemed to go okay my end!")
+        except AttributeError:
+            pass
 
-    def preflight_checks(self, depth=7):
+    def preflight_checks(self, depth=9):
         """This can be run to aid the user in setting up a coastalMe run
 
         Args:
@@ -310,14 +352,15 @@ class Cme:
             basement = False
 
         # Would the user like to set up a quick start model
+        print(f"We are curently working in {self.in_path}")
         ans = input(
             "Would you like to generate a quick start model \n this creates a model of uniform material using a topography/bathymatry .tiff file \n (Y/N) "
         )
-        if ans == "Y":
+        if ans == "Y" or ans == "y":
             # Search input folder for any tiffs
             f_list = file_search(dir_path, None, "tif")
             # if there are multiple allow the user to select
-            if type(f_list) == list:
+            if type(f_list) is list:
                 f_quest = dict(zip(range(len(f_list)), [str(x) for x in f_list]))
                 ans = int(
                     input("Which file would you like to use: {}".format(str(f_quest)))
@@ -480,14 +523,15 @@ class Cme:
             print("found {} timesteps".format(len(t)))
         # how many different saves are we dealing with
         itters = len(t)
-        # If cme crashed, add a fake extra timestep to store the crash outputs
         if len(t) < 2:
-            raise ValueError("Not enough outputs to collate")
+            raise ValueError(
+                "Not enough outputs to collate, probably an issue with CME"
+            )
+        # If cme crashed, add a fake extra timestep to store the crash outputs
         if crashed:
             delta = t[-1] - t[-2]
             faux = t[-1] + delta
             t.append(faux)
-            # t.append(datetime(9999, 9, 9, 0, 0))
         # Now we will collect all the raster and vector files in the output directory
         df = collect_files(itters, path, "tif")
         df_v = collect_files(itters, path, "shp")
@@ -508,7 +552,7 @@ class Cme:
             crashed=crashed,
         )
         # Generate plots of any profiles that have been output
-        profiles(t, path, df)
+        profiles(t, path)  # , df)
 
 
 def monitor_run(stop_event):

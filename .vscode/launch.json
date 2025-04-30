@@ -14,7 +14,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "/Users/wilfchun/Documents/GitHub/CoastalmeTools/tests/test_full.py",
-            "externalConsole": true,
+            "console": "integratedTerminal",
             "justMyCode": false
         },
         {
