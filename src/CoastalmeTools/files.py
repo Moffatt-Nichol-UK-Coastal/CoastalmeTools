@@ -24,7 +24,7 @@ from fiona import collection, errors
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 
 
-def collect_files(itters, path, f_type, depth=10):
+def collect_files(itters, path, f_type, depth=9):
     df = pd.DataFrame()
     itter_l = np.arange(1, itters + 1, 1)
     itter_l = np.append(itter_l, 999)
@@ -92,7 +92,7 @@ def vectors(t, df_v, path, vars_v):
 def rasters(t, df, path, vars, sed_top=True, crashed=False):
     base_p = df.loc[df["variables"] == "basement_elevation", "paths"].values[0][0]
     base = rasterio.open(base_p)
-    if sed_top == True:
+    if sed_top:
         cs = [
             "cons_sed_coarse_layer_1",
             "cons_sed_fine_layer_1",

@@ -83,6 +83,11 @@ source = ColumnDataSource(
         totalInput=[],
         totalCliffErod=[],
         totalCliffDepo=[],
+        CumCliffErod=[],
+        CumCliffDepo=[],
+        CumBeachErod=[],
+        CumBeachDepo=[],
+        GISevents=[]
     )
 )
 
@@ -143,7 +148,7 @@ q.line(
 )
 q.line(
     x="simTime",
-    y="totalCliffErod",
+    y="CumCliffErod",
     line_width=3,
     color="red",
     source=source,
@@ -201,6 +206,8 @@ def time_update(t):
     global calc_df
     global last_time
     global i
+
+
     # Read updated .out file int df
     df = parse_out(f_path, start_time)
     # Whats the time now
@@ -249,6 +256,7 @@ curdoc().add_root(
     )
 )
 # Start recursive plot update
+p_done = False
 curdoc().add_periodic_callback(time_update, 100)
 curdoc().title = "monitor"
 
@@ -258,6 +266,7 @@ def parse_out(path, start_time):
     This takes the path of the out file. Imports it and converts sim_time into model_time
     returns: whole dataframe
     """
+    global p_done
     col_widths = [
         4,
         7,
@@ -333,10 +342,16 @@ def parse_out(path, start_time):
         "cliff_collapse_depo_S",
         "cliff_collapse_depo_C",
         "susp_sed_F",
+        "GISevents"
     ]
-    df = pd.read_fwf(path, widths=col_widths, skiprows=115, header=None, names=coln)
+    # df = pd.read_fwf(path, widths=col_widths, skiprows=158, header=None, names=coln)
+    df = pd.read_csv(path, skiprows=158, header=None, names=coln)
     # df = df.astype("float")
+    # if not p_done:
+    #     df.to_csv('/Users/wilfchun/Downloads/tmp.csv')
+    #     p_done = True
 
+    # print(df["elapsed_hours"])
     df["simTime"] = [timedelta(hours=x) + start_time for x in df["elapsed_hours"]]
 
     df["totalInput"] = df["input_F"] + df["input_S"] + df["input_C"]
@@ -347,5 +362,11 @@ def parse_out(path, start_time):
         + df["cliff_collapse_erod_C"]
     )
     df["totalCliffDepo"] = df["cliff_collapse_depo_S"] + df["cliff_collapse_depo_C"]
+
+    df["CumCliffErod"] = df['totalCliffErod'].cumsum()
+    df["CumCliffDepo"] = df['totalCliffDepo'].cumsum()
+
+    df["CumBeachErod"] = df['actual_beach_erod_area_avg'].cumsum()
+    df["CumBeachDepo"] = df['actual_beach_depo_area_avg'].cumsum()
 
     return df
