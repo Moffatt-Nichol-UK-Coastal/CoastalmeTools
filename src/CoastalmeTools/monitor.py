@@ -132,7 +132,7 @@ q.x_range.range_padding = 0
 
 q.line(
     x="simTime",
-    y="actual_beach_erod_area_avg",
+    y="CumBeachErod",
     line_width=3,
     color="navy",
     source=source,
@@ -140,7 +140,7 @@ q.line(
 )
 q.line(
     x="simTime",
-    y="actual_beach_depo_area_avg",
+    y="CumBeachDepo",
     line_width=3,
     color="orange",
     source=source,
