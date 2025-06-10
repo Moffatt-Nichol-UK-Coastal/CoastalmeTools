@@ -1,8 +1,11 @@
+import os
+# Set HDF5 environment variable before any HDF5-related imports
+os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
+
 import xarray as xr
 import pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
-import os
 import numpy as np
 import time as timer
 import rasterio
@@ -20,8 +23,6 @@ import fiona
 import pyogrio
 from shapely.geometry import shape
 from fiona import collection, errors
-
-os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 
 
 def collect_files(itters, path, f_type, depth=9):
