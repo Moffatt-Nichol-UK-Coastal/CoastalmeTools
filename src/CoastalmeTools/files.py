@@ -112,15 +112,15 @@ def rasters(t, df, path, vars, sed_top=True, crashed=False):
     if "all" not in vars:
         df = df[df["variables"].isin(vars)]
     s_path = path / "all_vars.nc"
-    # Create netCDF dataset
-    rootgrp = Dataset(s_path, "w", format="NETCDF3_64BIT_OFFSET")
+    # Create netCDF dataset with optimized format
+    rootgrp = Dataset(s_path, "w", format="NETCDF4")
     time = rootgrp.createDimension("time", None)
     x = rootgrp.createDimension("x", base.width)
     y = rootgrp.createDimension("y", base.height)
 
-    x = rootgrp.createVariable("x", "f8", ("x",), compression="zlib")
-    y = rootgrp.createVariable("y", "f8", ("y",), compression="zlib")
-    times = rootgrp.createVariable("time", "f8", ("time",), compression="zlib")
+    x = rootgrp.createVariable("x", "f8", ("x",), compression="zlib", shuffle=True, complevel=9, fill_value=-9999.0)
+    y = rootgrp.createVariable("y", "f8", ("y",), compression="zlib", shuffle=True, complevel=9, fill_value=-9999.0)
+    times = rootgrp.createVariable("time", "f8", ("time",), compression="zlib", shuffle=True, complevel=9)
 
     rootgrp.description = "CoastalME Output"
     rootgrp.history = "Created " + timer.ctime(timer.time())
@@ -143,7 +143,7 @@ def rasters(t, df, path, vars, sed_top=True, crashed=False):
 
     rootgrp.close()
     # Loop over variable
-    with Dataset(s_path, "a", format="NETCDF3_64BIT_OFFSET") as appnd:
+    with Dataset(s_path, "a", format="NETCDF4") as appnd:
         for index, row in df.iterrows():
             if not crashed:
                 if "999" in row.paths[-1]:
@@ -151,9 +151,17 @@ def rasters(t, df, path, vars, sed_top=True, crashed=False):
             if len(row.paths) != len(t):
                 raise ValueError("Not enough rasters for timesteps")
             else:
-                # create variable for netcdf
+                # create variable for netcdf with optimal chunking and compression
+                # Calculate optimal chunk size based on typical access patterns
+                chunk_time = min(10, len(t))  # Chunk 10 timesteps or less if fewer available
+                chunk_y = min(100, base.height)  # Chunk spatial dimensions in 100x100 blocks
+                chunk_x = min(100, base.width)
+                
                 temp = appnd.createVariable(
-                    row.variables, "f4", ("time", "y", "x"), compression="zlib"
+                    row.variables, "f4", ("time", "y", "x"), 
+                    compression="zlib", shuffle=True, complevel=9,
+                    chunksizes=(chunk_time, chunk_y, chunk_x),
+                    fill_value=-9999.0
                 )
 
                 # Loop over timesteps
@@ -164,24 +172,45 @@ def rasters(t, df, path, vars, sed_top=True, crashed=False):
                         with rasterio.open(elm, "r") as ds:
                             arr = ds.read()
                             # arr = arr[np.newaxis, : ,:]
-                            temp[count] = np.flip(arr[0], 0)
+                            # Handle missing data with fill values
+                            arr_flipped = np.flip(arr[0], 0)
+                            # Replace any invalid values with fill value
+                            arr_flipped = np.where(np.isfinite(arr_flipped), arr_flipped, -9999.0)
+                            temp[count] = arr_flipped
                     except RasterioIOError:
                         continue
                     count += 1
                 # appnd.close()
                 print("Done: " + row.variables)
 
+        # Create composite variables with optimized settings
+        chunk_time = min(10, len(t))
+        chunk_y = min(100, base.height)
+        chunk_x = min(100, base.width)
+        
         temp = appnd.createVariable(
-            "_top_Consolidated", "f4", ("time", "y", "x"), compression="zlib"
+            "_top_Consolidated", "f4", ("time", "y", "x"), 
+            compression="zlib", shuffle=True, complevel=9,
+            chunksizes=(chunk_time, chunk_y, chunk_x),
+            fill_value=-9999.0
         )
         temp_u = appnd.createVariable(
-            "_top_Unconsolidated", "f4", ("time", "y", "x"), compression="zlib"
+            "_top_Unconsolidated", "f4", ("time", "y", "x"), 
+            compression="zlib", shuffle=True, complevel=9,
+            chunksizes=(chunk_time, chunk_y, chunk_x),
+            fill_value=-9999.0
         )
         temp_wl = appnd.createVariable(
-            "_top_Sea", "f4", ("time", "y", "x"), compression="zlib"
+            "_top_Sea", "f4", ("time", "y", "x"), 
+            compression="zlib", shuffle=True, complevel=9,
+            chunksizes=(chunk_time, chunk_y, chunk_x),
+            fill_value=-9999.0
         )
         temp_wa = appnd.createVariable(
-            "_top_Wave", "f4", ("time", "y", "x"), compression="zlib"
+            "_top_Wave", "f4", ("time", "y", "x"), 
+            compression="zlib", shuffle=True, complevel=9,
+            chunksizes=(chunk_time, chunk_y, chunk_x),
+            fill_value=-9999.0
         )
 
         for count in np.arange(0, len(t)):
@@ -203,7 +232,9 @@ def rasters(t, df, path, vars, sed_top=True, crashed=False):
                     sumy = arr
 
             if "sumy" in locals():
-                temp[count] = np.flip(sumy[0], 0)
+                arr_flipped = np.flip(sumy[0], 0)
+                arr_flipped = np.where(np.isfinite(arr_flipped), arr_flipped, -9999.0)
+                temp[count] = arr_flipped
 
             for index, row in u_sed_df.iterrows():
                 elm = row.paths[count]
@@ -221,7 +252,9 @@ def rasters(t, df, path, vars, sed_top=True, crashed=False):
                     sumy = arr
 
             if "sumy" in locals():
-                temp_u[count] = np.flip(sumy[0], 0)
+                arr_flipped = np.flip(sumy[0], 0)
+                arr_flipped = np.where(np.isfinite(arr_flipped), arr_flipped, -9999.0)
+                temp_u[count] = arr_flipped
 
             for index, row in sl_df.iterrows():
                 elm = row.paths[count]
@@ -240,8 +273,10 @@ def rasters(t, df, path, vars, sed_top=True, crashed=False):
                     sumy = arr
 
             if "sumy" in locals():
-                sumy[dry] = np.nan
-                temp_wl[count] = np.flip(sumy[0], 0)
+                sumy[dry] = -9999.0  # Use fill value instead of NaN
+                arr_flipped = np.flip(sumy[0], 0)
+                arr_flipped = np.where(np.isfinite(arr_flipped), arr_flipped, -9999.0)
+                temp_wl[count] = arr_flipped
 
             for index, row in wh_df.iterrows():
                 elm = row.paths[count]
@@ -260,8 +295,10 @@ def rasters(t, df, path, vars, sed_top=True, crashed=False):
                     sumy = arr
 
             if "sumy" in locals():
-                sumy[dry] = np.nan
-                temp_wa[count] = np.flip(sumy[0], 0)
+                sumy[dry] = -9999.0  # Use fill value instead of NaN
+                arr_flipped = np.flip(sumy[0], 0)
+                arr_flipped = np.where(np.isfinite(arr_flipped), arr_flipped, -9999.0)
+                temp_wa[count] = arr_flipped
 
 
 def profiles(t, path):
