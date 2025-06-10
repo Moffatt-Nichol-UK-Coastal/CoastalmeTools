@@ -470,21 +470,38 @@ class Cme:
         start = datetime.strptime(start, "%H-%M-%S %m/%d/%Y")
         duration = timedelta(seconds=timeparse(duration))
         end = start + duration
-        steps = steps_p.split(" ")
-        unit = steps[-1]
-        steps = [x + " " + unit for x in steps[0:-1]]
-        if len(steps) == 1:
+        step_units = steps_p.split(",")
+        steps = []
+        for unit_out in step_units:
+            unit_out = unit_out.strip()
+            this_steps = unit_out.split(" ")
+            unit = this_steps[-1]
+            these_steps = [x + " " + unit for x in this_steps[0:-1]]
+            steps = steps + these_steps
+        if len(steps) > 1:
+            # handle the defined save times
+            steps = [timedelta(seconds=timeparse(x)) for x in steps]
+            # saves = [start + x for x in steps]
+            # saves = [x for x in saves if x <= end]
+
+            # handle the repeted trailing save itter
+            save_itter = steps[-1]
+            steps.pop(-1)
+            trailing_save_steps = (
+                np.arange(start, end, save_itter).astype(datetime).tolist()
+            )
+            trailing_save_steps.pop(0)
+            saves = [start + x for x in steps]
+            saves = saves + trailing_save_steps + [end]
+
+        elif len(steps) == 1:
             save_itter = timedelta(seconds=timeparse(steps_p))
             steps = np.arange(start, end, save_itter).astype(datetime).tolist()
             steps.append(end)
             steps.pop(0)
             saves = steps
         else:
-            steps = [timedelta(seconds=timeparse(x)) for x in steps]
-
-            saves = [start + x for x in steps]
-
-            saves = [x for x in saves if x <= end]
+            raise ValueError
 
         return saves
 
