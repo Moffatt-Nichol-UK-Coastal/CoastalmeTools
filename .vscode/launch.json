@@ -13,7 +13,7 @@
             "name": "Python Debugger: mac test all",
             "type": "debugpy",
             "request": "launch",
-            "program": "/Users/wilfchun/Documents/GitHub/CoastalmeTools/tests/test_full.py",
+            "program": "/Users/wilfchun/Documents/GitHub/CoastalmeTools/scripts/test_full.py",
             "console": "integratedTerminal",
             "justMyCode": false
         },
@@ -21,14 +21,14 @@
             "name": "Python Debugger: test collate",
             "type": "debugpy",
             "request": "launch",
-            "program": "/home/wilfc/CoastalmeTools/tests/test_collate_results.py",
+            "program": "/home/wilfc/CoastalmeTools/scripts/test_collate_results.py",
             "console": "integratedTerminal"
         },
         {
             "name": "Python Debugger: test parse",
             "type": "debugpy",
             "request": "launch",
-            "program": "/home/wilfc/CoastalmeTools/tests/test_parse_results.py",
+            "program": "/home/wilfc/CoastalmeTools/scripts/test_parse_results.py",
             "console": "integratedTerminal",
             "justMyCode": false
         },
@@ -36,7 +36,7 @@
             "name": "Python Debugger: test prep",
             "type": "debugpy",
             "request": "launch",
-            "program": "/home/wilfc/CoastalmeTools/tests/test_prep_run.py",
+            "program": "/home/wilfc/CoastalmeTools/scripts/test_prep_run.py",
             "console": "integratedTerminal",
             "justMyCode": false
         },
@@ -44,7 +44,7 @@
             "name": "Python Debugger: test all",
             "type": "debugpy",
             "request": "launch",
-            "program": "/home/wilfc/CoastalmeTools/tests/test_full.py",
+            "program": "/home/wilfc/CoastalmeTools/scripts/test_full.py",
             "console": "integratedTerminal",
             "justMyCode": false
         }
