@@ -13,7 +13,7 @@ from windrose import WindroseAxes
 import matplotlib
 from bokeh.command.bootstrap import main
 
-matplotlib.use("TKAgg")
+matplotlib.use("qtagg")
 import matplotlib.pyplot as plt
 from .files import collect_files, vectors, rasters, profiles, file_search
 from .xml2raster import genBase
@@ -230,7 +230,7 @@ class Cme:
 
             # Wait and setup our monitoring proccess for run in the background
             m_path = Path(
-                "/Users/wilfchun/Documents/GitHub/CoastalmeTools/src/CoastalmeTools/monitor.py"
+                "/Users/wilfchun/Documents/GitHub/CoastalME/CoastalmeTools/src/CoastalmeTools/monitor.py"
             )
             start = find_var(self.config, "Simulation start date")
             start_time = datetime.strptime(start, "%H-%M-%S %d/%m/%Y").timestamp()
@@ -550,8 +550,8 @@ class Cme:
             faux = t[-1] + delta
             t.append(faux)
         # Now we will collect all the raster and vector files in the output directory
-        df = collect_files(itters, path, "tif")
-        df_v = collect_files(itters, path, "shp")
+        df = collect_files(itters, path, "tif", depth=self.project_dir_depth)
+        df_v = collect_files(itters, path, "shp", depth=self.project_dir_depth)
 
         # test if the user requested the basement elevation output
         if "basement_elevation" not in vars:
@@ -571,7 +571,40 @@ class Cme:
         # Generate plots of any profiles that have been output
         profiles(t, path)  # , df)
 
+    def build_model(self):
+        start = find_var(self.config, "Simulation start date")
+        start = datetime.strptime(start, "%H-%M-%S %m/%d/%Y")
+        # what are our different layer options
+        fractions = ["coarse", "sand", "fine"]
+        stiffness = ["consolidated", "unconsolidated"]
+        stiffness_sh = ["cons", "uncons"]
 
+        base_path = ""
+        for part in self.in_path.parts:
+            if part == "/":
+                continue
+            elif part != Path(self.find_config("basement")).parts[0]:
+                base_path = base_path + "/" + part
+            else:
+                base_path = base_path + "/"
+                break
+
+        files = {"basement_elevation": [[base_path + self.find_config("basement")]]}
+
+        # Now lest look at all possible combonations of these layer options
+        for stiffnes, stiffnes_sh in zip(stiffness, stiffness_sh):
+            for fraction in fractions:
+                layer_sh = stiffnes_sh + "_sed_" + fraction + "_layer_1"
+                layer = stiffnes + " " + fraction
+                layer_p = self.find_config(" " + layer)
+                if len(layer_p) > 2:
+                    files[layer_sh] = [[base_path + layer_p]]
+        df = pd.DataFrame.from_dict(files, orient="index")
+        df = df.reset_index()
+        df = df.set_axis(["variables", "paths"], axis=1)
+        # what vars do we have on start
+        rasters([start], df, self.in_path.parent, [], sed_top=True)
+        pass
 def monitor_run(stop_event):
     with chdir(
         Path("/Users/wilfchun/Documents/GitHub/CoastalmeTools/src/CoastalmeTools/")

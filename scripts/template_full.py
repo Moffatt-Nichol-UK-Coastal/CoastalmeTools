@@ -8,12 +8,13 @@ if platform.system() == "Darwin":
         # r"/Users/wilfchun/Documents/GitHub/CoastalMe/in/Exploration/Scen016/cme.ini"
         # r"/Users/wilfchun/Documents/GitHub/CoastalMe/in/test_suite/Manuel_C003_0001/cme.ini"
         # r"/Users/wilfchun/Documents/GitHub/CoastalMe/coastalme/in/test_suite/Happisburgh/cme.ini"
-        r"/Users/wilfchun/Documents/GitHub/CoastalMe/CSE/Southwold/in/cme.ini"
+        # r"/Users/wilfchun/Documents/GitHub/CoastalMe/in/test_suite/Happisburgh/cme.ini"
+        r"/Users/wilfchun/Documents/GitHub/CoastalMe/CoastalME_data/CSE/Thorpness/in/cme.ini"
     )
     # Provide path where we want cme to run, this is the --home cmd ln arg
-    run_path = r"/Users/wilfchun/Documents/GitHub/CoastalMe/"
+    run_path = r"/Users/wilfchun/Documents/GitHub/CoastalMe/CoastalME_data/"
     # Provide path of cme executable
-    cme_path = r"/Users/wilfchun/Documents/GitHub/CoastalMe/cme"
+    cme_path = r"/Users/wilfchun/Documents/GitHub/CoastalMe/coastalme/cme"
 
 elif platform.system() == "Linux":
     # Provide path of cme ini file
@@ -28,7 +29,10 @@ cme = Cme(ini_file, run_path)
 
 # cme.tide_check()
 # check if were good to run, also do we want to do quick start
-# cme.preflight_checks()
+# cme.preflight_checks(depth=10)
+
+# Build t0
+cme.build_model()
 
 # Now we run cme
 cme.run(cme_path)

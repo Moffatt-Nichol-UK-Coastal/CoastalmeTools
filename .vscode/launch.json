@@ -2,41 +2,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Current File",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal",
-            "justMyCode": false
-        },
-        {
             "name": "Python Debugger: mac test all",
             "type": "debugpy",
             "request": "launch",
-            "program": "/Users/wilfchun/Documents/GitHub/CoastalmeTools/scripts/test_full.py",
-            "console": "integratedTerminal",
-            "justMyCode": false
-        },
-        {
-            "name": "Python Debugger: test collate",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "/home/wilfc/CoastalmeTools/scripts/test_collate_results.py",
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Python Debugger: test parse",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "/home/wilfc/CoastalmeTools/scripts/test_parse_results.py",
-            "console": "integratedTerminal",
-            "justMyCode": false
-        },
-        {
-            "name": "Python Debugger: test prep",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "/home/wilfc/CoastalmeTools/scripts/test_prep_run.py",
+            "program": "/Users/wilfchun/Documents/GitHub/CoastalME/CoastalmeTools/scripts/template_full.py",
             "console": "integratedTerminal",
             "justMyCode": false
         },

@@ -27,7 +27,7 @@ from shapely.geometry import shape
 from fiona import collection, errors
 
 
-def collect_files(itters, path, f_type, depth=9):
+def collect_files(itters, path, f_type, depth=10):
     df = pd.DataFrame()
     itter_l = np.arange(1, itters + 1, 1)
     itter_l = np.append(itter_l, 999)
@@ -93,6 +93,19 @@ def vectors(t, df_v, path, vars_v):
 
 
 def rasters(t, df, path, vars, sed_top=True, crashed=False):
+    """read a coastalme input file, either an .ini or a .dat
+
+    Args:
+        t (list): list of timestamps of outputs
+        df (DataFrame): 2 column df of output variable and list of file paths
+        path (Path): output folder path
+        vars (list): list of out vars to add to ncdf
+        sed_top (bool): do we want to produce some extra sedient layers in ncdf
+        crashed (bool): are we here as a result of a cme crash
+
+    Returns:
+        void
+    """
     base_p = df.loc[df["variables"] == "basement_elevation", "paths"].values[0][0]
     base = rasterio.open(base_p)
     if sed_top:
@@ -303,49 +316,51 @@ def rasters(t, df, path, vars, sed_top=True, crashed=False):
                 arr_flipped = np.where(np.isfinite(arr_flipped), arr_flipped, -9999.0)
                 temp_u[count] = arr_flipped
 
-            for index, row in sl_df.iterrows():
-                elm = row.paths[count]
-                try:
-                    with rasterio.open(elm, "r") as ds:
-                        arr = ds.read()
-                        # arr = arr[np.newaxis, : ,:]
-                        dry = arr == 0
-                except RasterioIOError:
-                    continue
+            if not sl_df.empty:
+                for index, row in sl_df.iterrows():
+                    elm = row.paths[count]
+                    try:
+                        with rasterio.open(elm, "r") as ds:
+                            arr = ds.read()
+                            # arr = arr[np.newaxis, : ,:]
+                            dry = arr == 0
+                    except RasterioIOError:
+                        continue
+                    if "sumy" in locals():
+                        sumy = sumy + arr
+                        # ind = arr==0
+                        # sum[ind] = 0
+                    else:
+                        sumy = arr
+
                 if "sumy" in locals():
-                    sumy = sumy + arr
-                    # ind = arr==0
-                    # sum[ind] = 0
-                else:
-                    sumy = arr
+                    sumy[dry] = -9999.0  # Use fill value instead of NaN
+                    arr_flipped = np.flip(sumy[0], 0)
+                    arr_flipped = np.where(np.isfinite(arr_flipped), arr_flipped, -9999.0)
+                    temp_wl[count] = arr_flipped
 
-            if "sumy" in locals():
-                sumy[dry] = -9999.0  # Use fill value instead of NaN
-                arr_flipped = np.flip(sumy[0], 0)
-                arr_flipped = np.where(np.isfinite(arr_flipped), arr_flipped, -9999.0)
-                temp_wl[count] = arr_flipped
+            if not wh_df.empty:
+                for index, row in wh_df.iterrows():
+                    elm = row.paths[count]
+                    try:
+                        with rasterio.open(elm, "r") as ds:
+                            arr = ds.read()
+                            # arr = arr[np.newaxis, : ,:]
+                            dry = arr == 0
+                    except RasterioIOError:
+                        continue
+                    if "sumy" in locals():
+                        sumy = sumy + arr / 2
+                        # ind = arr==0
+                        # sum[ind] = 0
+                    else:
+                        sumy = arr
 
-            for index, row in wh_df.iterrows():
-                elm = row.paths[count]
-                try:
-                    with rasterio.open(elm, "r") as ds:
-                        arr = ds.read()
-                        # arr = arr[np.newaxis, : ,:]
-                        dry = arr == 0
-                except RasterioIOError:
-                    continue
                 if "sumy" in locals():
-                    sumy = sumy + arr / 2
-                    # ind = arr==0
-                    # sum[ind] = 0
-                else:
-                    sumy = arr
-
-            if "sumy" in locals():
-                sumy[dry] = -9999.0  # Use fill value instead of NaN
-                arr_flipped = np.flip(sumy[0], 0)
-                arr_flipped = np.where(np.isfinite(arr_flipped), arr_flipped, -9999.0)
-                temp_wa[count] = arr_flipped
+                    sumy[dry] = -9999.0  # Use fill value instead of NaN
+                    arr_flipped = np.flip(sumy[0], 0)
+                    arr_flipped = np.where(np.isfinite(arr_flipped), arr_flipped, -9999.0)
+                    temp_wa[count] = arr_flipped
 
 
 def profiles(t, path):
