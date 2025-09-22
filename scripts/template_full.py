@@ -9,10 +9,10 @@ if platform.system() == "Darwin":
         # r"/Users/wilfchun/Documents/GitHub/CoastalMe/in/test_suite/Manuel_C003_0001/cme.ini"
         # r"/Users/wilfchun/Documents/GitHub/CoastalMe/coastalme/in/test_suite/Happisburgh/cme.ini"
         # r"/Users/wilfchun/Documents/GitHub/CoastalMe/in/test_suite/Happisburgh/cme.ini"
-        r"/Users/wilfchun/Documents/GitHub/CoastalMe/CoastalME_data/CSE/Thorpness/in/cme.ini"
+        r"/Users/wilfchun/Documents/GitHub/CoastalMe/CoastalME_data_local/CSE/Thorpness/in/cme.ini"
     )
     # Provide path where we want cme to run, this is the --home cmd ln arg
-    run_path = r"/Users/wilfchun/Documents/GitHub/CoastalMe/CoastalME_data/"
+    run_path = r"/Users/wilfchun/Documents/GitHub/CoastalMe/CoastalME_data_local/"
     # Provide path of cme executable
     cme_path = r"/Users/wilfchun/Documents/GitHub/CoastalMe/coastalme/cme"
 
@@ -32,7 +32,7 @@ cme = Cme(ini_file, run_path)
 # cme.preflight_checks(depth=10)
 
 # Build t0
-cme.build_model()
+# cme.build_model()
 
 # Now we run cme
 cme.run(cme_path)

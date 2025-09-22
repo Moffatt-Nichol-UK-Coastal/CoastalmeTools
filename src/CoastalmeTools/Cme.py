@@ -11,6 +11,7 @@ from contextlib import chdir
 import subprocess
 from windrose import WindroseAxes
 import matplotlib
+import yaml
 from bokeh.command.bootstrap import main
 
 matplotlib.use("qtagg")
@@ -49,11 +50,18 @@ class Cme:
         """
         Path.cwd()
         ini = Path(ini)
+        self.project_dir_depth = 10 #TODO: aquire programmatically
         self.ini = ini
         self.exec_path = run_path
         self.paths_df, paths = read_ini(ini)
         self.in_path = Path(run_path) / find_var(paths, "input")
-        self.config_df, self.config = read_ini(self.in_path)
+        # Lets get the type of input that we are using
+        if self.in_path.suffix == ".dat":
+            self.conf_type = "dat"
+            self.config_df, self.config = read_ini(self.in_path)
+        elif self.in_path.suffix == ".yaml":
+            self.conf_type = "yaml"
+            self.config_df, self.config = read_yaml(self.in_path)
         self.out_path = Path(run_path) / find_var(paths, "output")
         if os.path.exists(self.out_path):
             self.started = True
@@ -222,19 +230,17 @@ class Cme:
 
         # Lets put together our CME run command
         params = [str(ex_p)]
-        params.append("--home=")
-        params.append(str(self.exec_path))
+        params.append(f"--home={str(self.exec_path)}")
+        params.append("--yaml")
         try:
             with chdir(self.exec_path):
-                completed_process = subprocess.Popen(params)
+                completed_process = subprocess.Popen(params, shell=False)
 
             # Wait and setup our monitoring proccess for run in the background
             m_path = Path(
                 "/Users/wilfchun/Documents/GitHub/CoastalME/CoastalmeTools/src/CoastalmeTools/monitor.py"
             )
-            start = find_var(self.config, "Simulation start date")
-            start_time = datetime.strptime(start, "%H-%M-%S %d/%m/%Y").timestamp()
-            start_time = str(start_time)
+            start_time = self.get_model_start().timestamp()
             # Start our monitoring
             monitor_proccess = subprocess.Popen(
                 [
@@ -244,7 +250,7 @@ class Cme:
                     m_path,
                     "--args",
                     str(self.out_path),
-                    start_time,
+                    str(start_time),
                 ]
             )
 
@@ -462,15 +468,18 @@ class Cme:
         Returns:
             list: list of all save points in simulation time
         """
-        start = find_var(self.config, "Simulation start date")
+        start = find_var(self.config, "start date")
         duration = find_var(self.config, "Duration of simulation")
-        t_steps = find_var(self.config, "Timestep ", case=True)
+        # t_steps = find_var(self.config, "Timestep ", case=True)
         steps_p = find_var(self.config, "save times")
 
         start = datetime.strptime(start, "%H-%M-%S %m/%d/%Y")
         duration = timedelta(seconds=timeparse(duration))
         end = start + duration
-        step_units = steps_p.split(",")
+        try:
+            step_units = steps_p.split(",")
+        except AttributeError:
+            step_units = steps_p
         steps = []
         for unit_out in step_units:
             unit_out = unit_out.strip()
@@ -495,6 +504,7 @@ class Cme:
             saves = saves + trailing_save_steps + [end]
 
         elif len(steps) == 1:
+            steps_p = steps_p[0]
             save_itter = timedelta(seconds=timeparse(steps_p))
             steps = np.arange(start, end, save_itter).astype(datetime).tolist()
             steps.append(end)
@@ -572,18 +582,18 @@ class Cme:
         profiles(t, path)  # , df)
 
     def build_model(self):
-        start = find_var(self.config, "Simulation start date")
+        start = find_var(self.config, ["start", "date"])
         start = datetime.strptime(start, "%H-%M-%S %m/%d/%Y")
         # what are our different layer options
         fractions = ["coarse", "sand", "fine"]
-        stiffness = ["consolidated", "unconsolidated"]
+        stiffness = ["_consolidated", "unconsolidated"]
         stiffness_sh = ["cons", "uncons"]
 
         base_path = ""
         for part in self.in_path.parts:
             if part == "/":
                 continue
-            elif part != Path(self.find_config("basement")).parts[0]:
+            elif part != self.in_path.parts[-1]:
                 base_path = base_path + "/" + part
             else:
                 base_path = base_path + "/"
@@ -595,8 +605,7 @@ class Cme:
         for stiffnes, stiffnes_sh in zip(stiffness, stiffness_sh):
             for fraction in fractions:
                 layer_sh = stiffnes_sh + "_sed_" + fraction + "_layer_1"
-                layer = stiffnes + " " + fraction
-                layer_p = self.find_config(" " + layer)
+                layer_p = self.find_config([stiffnes, fraction])
                 if len(layer_p) > 2:
                     files[layer_sh] = [[base_path + layer_p]]
         df = pd.DataFrame.from_dict(files, orient="index")
@@ -605,6 +614,13 @@ class Cme:
         # what vars do we have on start
         rasters([start], df, self.in_path.parent, [], sed_top=True)
         pass
+
+    def get_model_start(self):
+        start = find_var(self.config, "start date")
+        start = datetime.strptime(start, "%H-%M-%S %m/%d/%Y")
+        return start
+
+
 def monitor_run(stop_event):
     with chdir(
         Path("/Users/wilfchun/Documents/GitHub/CoastalmeTools/src/CoastalmeTools/")
@@ -715,3 +731,50 @@ def parse_line(in_str):
     split = [x for x in split if not x == ":"]
     split = [re.sub(" +", " ", x) for x in split]
     return split
+
+
+def read_yaml(path):
+    """read a coastalme input file, in yaml format
+    Args:
+        path (path): path to file to be read
+
+    Returns:
+        df: dataframe containing settings
+    """
+    # What are we reading
+    p_type = str(path).split(".")[1]
+    if not os.path.exists(path):
+        # raise FileNotFoundError("No input .dat file in this folder")
+        print("No input .{} file in this folder".format(p_type))
+        src = Path(str(input("Please provide the path to a template input: ")))
+        shutil.copyfile(src, path)
+        print("template copied")
+
+    with open(path, "r") as f:
+        # Read yaml
+        config = yaml.safe_load(f)
+        data = {"section": [], "key": [], "value": []}
+        # Now we will assume a 2 teir yaml file
+        for key, value in config.items():
+            if type(value) is dict:
+                for keyy, valuee in value.items():
+                    if type(valuee) is dict:
+                        for keyyy, valueee in valuee.items():
+                            data["section"].append(key)
+                            data["key"].append(f"{keyy}_{keyyy}")
+                            data["value"].append(valueee)
+                    else:
+                        data["section"].append(key)
+                        data["key"].append(keyy)
+                        data["value"].append(valuee)
+            else:
+                pass
+        df = pd.DataFrame.from_dict(data)
+
+        df["type"] = "setting"
+        df["modified"] = False
+
+        # now focus on the lines actually containing settings
+        vars = dict(zip(list(df["key"].values), list(df["value"].values)))
+    return df, vars
+
