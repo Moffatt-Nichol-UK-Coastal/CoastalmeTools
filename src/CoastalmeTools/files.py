@@ -10,6 +10,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import time as timer
+import logging
 import rasterio
 from rasterio.errors import RasterioIOError
 import glob
@@ -25,6 +26,9 @@ import fiona
 import pyogrio
 from shapely.geometry import shape
 from fiona import collection, errors
+
+# Configure module logger
+logger = logging.getLogger(__name__)
 
 
 def collect_files(itters, path, f_type, depth=10):
@@ -88,8 +92,8 @@ def vectors(t, df_v, path, vars_v):
             # shape.set_crs('epsg:27700')
             count += 1
         gdf.to_file(v_path / "all_vect.gpkg", layer=row.variables, driver="GPKG")
-        print("Done: " + row.variables)
-    print("Done: All Vectors")
+        logger.info(f"Done: {row.variables}")
+    logger.info("Done: All Vectors")
 
 
 def rasters(t, df, path, vars, sed_top=True, crashed=False):
@@ -225,7 +229,7 @@ def rasters(t, df, path, vars, sed_top=True, crashed=False):
                         continue
                     count += 1
                 # appnd.close()
-                print("Done: " + row.variables)
+                logger.info(f"Done: {row.variables}")
 
         # Create composite variables with optimized settings
         chunk_time = min(10, len(t))

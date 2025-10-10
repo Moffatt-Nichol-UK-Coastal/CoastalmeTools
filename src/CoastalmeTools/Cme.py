@@ -6,6 +6,7 @@ import numpy as np
 from datetime import datetime, timedelta
 import glob
 import os
+import logging
 from pytimeparse2 import parse as timeparse
 from contextlib import chdir
 import subprocess
@@ -22,6 +23,18 @@ from .hydro import wave_read
 
 # from .monitor import monitor_run
 from .tools import find_var
+
+# Configure module logger
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
 
 
 class bcolors:
@@ -271,7 +284,7 @@ class Cme:
         try:
             self.retrieve_log()
         except (FileNotFoundError, OSError) as e:
-            print(f"Warning: Could not retrieve log file: {e}")
+            logger.warning(f"Could not retrieve log file: {e}")
         return completed_process.returncode
 
     def retrieve_log(self):
@@ -295,7 +308,7 @@ class Cme:
             return
 
         if not hasattr(self, 'errors') or not hasattr(self, 'warnings'):
-            print("Log file information not available")
+            logger.warning("Log file information not available")
             return
 
         if self.crashed:
@@ -536,7 +549,7 @@ class Cme:
         path = self.out_path
         # Find expected output save points
         t = self.out_times()
-        print("Expected {} timesteps".format(len(t)))
+        logger.info(f"Expected {len(t)} timesteps")
         # using basement outputs, find how many have been produced
         finder = str(path / "basement_elevation*.tif")
         completed = len(glob.glob(finder))
@@ -548,7 +561,7 @@ class Cme:
             self.success = False
             crashed = True
             t = t[:completed]
-            print("found {} timesteps".format(len(t)))
+            logger.warning(f"Found only {len(t)} timesteps (expected {len(t) + (len(t) - completed)})")
         # how many different saves are we dealing with
         itters = len(t)
         if len(t) < 2:
@@ -654,7 +667,7 @@ def read_log(path, level, verbose=True):
     if level >= 3:
         pass
     if verbose:
-        print(
+        logger.info(
             f"Log file found containing {error_count} errors, and {warning_count} warnings"
         )
     return file, error_lines, warning_lines
