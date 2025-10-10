@@ -18,11 +18,12 @@ if platform.system() == "Darwin":
 
 elif platform.system() == "Linux":
     # Provide path of cme ini file
-    ini_file = r"/home/wilfc/CoastalME/in/Exploration/Scen017/cme.ini"
+    # ini_file = r"/home/wilfc/CoastalME/in/Exploration/Scen017/cme.ini"
+    ini_file = r"/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Cliff/cme.ini"
     # Provide path where we want cme to run, this is the --home cmd ln arg
-    run_path = r"/home/wilfc/CoastalME/coastalme/"
+    run_path = r"/home/wilfchun/CoastalME/coastalme/"
     # Provide path of cme executable
-    cme_path = r"/home/wilfc/CoastalME/coastalme/cme"
+    cme_path = r"/home/wilfchun/CoastalME/coastalme/cme"
 
 # Setup
 cme = Cme(ini_file, run_path)

@@ -270,8 +270,8 @@ class Cme:
             self.crashed = True
         try:
             self.retrieve_log()
-        except:
-            pass
+        except (FileNotFoundError, OSError) as e:
+            print(f"Warning: Could not retrieve log file: {e}")
         return completed_process.returncode
 
     def retrieve_log(self):
@@ -290,39 +290,44 @@ class Cme:
 
     def return_rescue(self):
         """Use this to print a coloured summery of any errors in the log file if cme crashed"""
-        try:
-            if self.crashed:
-                print("")
-                er = (
-                    "\n".join(
-                        "ln{!r}: {!r},".format(k, v) for k, v in self.errors.items()
-                    )
-                    + "\n"
+        # Check if we have crash information available
+        if not hasattr(self, 'crashed'):
+            return
+
+        if not hasattr(self, 'errors') or not hasattr(self, 'warnings'):
+            print("Log file information not available")
+            return
+
+        if self.crashed:
+            print("")
+            er = (
+                "\n".join(
+                    "ln{!r}: {!r},".format(k, v) for k, v in self.errors.items()
                 )
-                wa = (
-                    "\n".join(
-                        "ln{!r}: {!r},".format(k, v) for k, v in self.warnings.items()
-                    )
-                    + "\n"
+                + "\n"
+            )
+            wa = (
+                "\n".join(
+                    "ln{!r}: {!r},".format(k, v) for k, v in self.warnings.items()
                 )
-                print(
-                    bcolors.FAIL
-                    + "CoastalME has crashed, these are the errors recorded in the log file:\n {}".format(
-                        str(er)
-                    )
-                    + bcolors.ENDC
+                + "\n"
+            )
+            print(
+                bcolors.FAIL
+                + "CoastalME has crashed, these are the errors recorded in the log file:\n {}".format(
+                    str(er)
                 )
-                print(
-                    bcolors.WARNING
-                    + "CoastalME has crashed, these are the warnings recorded in the log file:\n {}".format(
-                        str(wa)
-                    )
-                    + bcolors.ENDC
+                + bcolors.ENDC
+            )
+            print(
+                bcolors.WARNING
+                + "CoastalME has crashed, these are the warnings recorded in the log file:\n {}".format(
+                    str(wa)
                 )
-            else:
-                print("Everything seemed to go okay my end!")
-        except AttributeError:
-            pass
+                + bcolors.ENDC
+            )
+        else:
+            print("Everything seemed to go okay my end!")
 
     def preflight_checks(self, depth=9):
         """This can be run to aid the user in setting up a coastalMe run
@@ -523,10 +528,7 @@ class Cme:
         """
         # Check if CME has been run
         if self.started:
-            try:
-                crashed = self.crashed
-            except AttributeError:
-                crashed = False
+            crashed = getattr(self, 'crashed', False)
         else:
             return ValueError(
                 "Simulation not run, please run coastalme before using this command"
