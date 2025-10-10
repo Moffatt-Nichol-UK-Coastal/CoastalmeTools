@@ -144,7 +144,14 @@ def vect2structRast(vectPath, extent):
     pass
 
 if __name__ == "__main__":
-    path = Path(r"/home/wilfc/CoastalME/in/Exploration/Scen013")
+    # Example usage - update these paths to your actual data location
+    import sys
+    if len(sys.argv) < 2:
+        print("Usage: python vect2structRast.py <path_to_scenario_folder>")
+        print("Example: python vect2structRast.py /home/user/CoastalME/in/Exploration/Scen013")
+        sys.exit(1)
+
+    path = Path(sys.argv[1])
     vect_p = path / 'defences.gdb'
     base_p = path / "basement.asc"
     vect2structRast(vect_p, base_p)

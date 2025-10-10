@@ -237,9 +237,8 @@ class Cme:
                 completed_process = subprocess.Popen(params, shell=False)
 
             # Wait and setup our monitoring proccess for run in the background
-            m_path = Path(
-                "/Users/wilfchun/Documents/GitHub/CoastalME/CoastalmeTools/src/CoastalmeTools/monitor.py"
-            )
+            # Use __file__ to find monitor.py relative to this module
+            m_path = Path(__file__).parent / "monitor.py"
             start_time = self.get_model_start().timestamp()
             # Start our monitoring
             monitor_proccess = subprocess.Popen(
@@ -622,9 +621,9 @@ class Cme:
 
 
 def monitor_run(stop_event):
-    with chdir(
-        Path("/Users/wilfchun/Documents/GitHub/CoastalmeTools/src/CoastalmeTools/")
-    ):
+    # Use __file__ to find the module directory
+    module_dir = Path(__file__).parent
+    with chdir(module_dir):
         main(["bokeh", "serve", "--show", "monitor.py"])
 
 
