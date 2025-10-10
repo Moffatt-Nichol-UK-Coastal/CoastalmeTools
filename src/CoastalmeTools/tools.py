@@ -27,7 +27,8 @@ def find_var(dict, querys, case=False):
             # we have found a unique match
             # remove any trailing comment on the line
             out = next(iter(results.values()))
-            if ";" in out:
+            # Only strip comments if the value is a string
+            if isinstance(out, str) and ";" in out:
                 out = out.partition(";")[0]
             return out
         dict = results

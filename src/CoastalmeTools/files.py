@@ -31,7 +31,18 @@ from fiona import collection, errors
 logger = logging.getLogger(__name__)
 
 
-def collect_files(itters, path, f_type, depth=10):
+def collect_files(itters, path, f_type, depth=None):
+    """Collect output files from CME run and organize by variable name.
+
+    Args:
+        itters: Number of iterations/timesteps
+        path: Path to output directory
+        f_type: File extension to search for (e.g., 'tif', 'shp')
+        depth: Optional depth for path splitting (deprecated, calculated automatically)
+
+    Returns:
+        DataFrame with 'variables' and 'paths' columns
+    """
     df = pd.DataFrame()
     itter_l = np.arange(1, itters + 1, 1)
     itter_l = np.append(itter_l, 999)
@@ -46,7 +57,10 @@ def collect_files(itters, path, f_type, depth=10):
 
     temp = [x[:-7] for x in files]
     paths = list(set(temp))
-    vars = [fi.split("/")[depth] for fi in paths]
+
+    # Extract variable names using Path instead of string splitting
+    # This removes the timestep suffix (last character) from the filename
+    vars = [Path(fi).name for fi in paths]
     df["variables"] = [x[:-1] for x in vars]
 
     for path in paths:

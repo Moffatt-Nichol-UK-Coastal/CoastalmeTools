@@ -249,6 +249,22 @@ def genBase(file, output_path, out_type="asc"):
 
 
 def rasterFill(a, s, p={}):
+    """Fill raster holes using flood fill algorithm.
+
+    Args:
+        a: Input raster array
+        s: Scale factor
+        p: Dictionary of {value: (x, y)} seed points for flood fill.
+           If empty, uses default seed point.
+
+    Returns:
+        Filled raster array
+
+    Note:
+        Future enhancement: Add interactive point selection using matplotlib's
+        ginput() or a GUI widget. For now, users must provide seed points
+        programmatically or use the default.
+    """
     a = np.where(a >= 0, a, -9999)
     max_elev = np.nanmax(a)
     if len(p) == 0:
@@ -257,7 +273,7 @@ def rasterFill(a, s, p={}):
     null_a = np.where(a >= 0, 0, 1)
     im = plt.imshow(null_a, cmap="hot")
     # plt.show()
-    # TODO: need to have a way for user to select, preferably graphicaly
+
     for key, value in p.items():
         # value = tuple(int(i / 5 * s) for i in value)
         fill_point = value

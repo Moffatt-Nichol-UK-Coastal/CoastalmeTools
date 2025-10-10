@@ -29,8 +29,8 @@ logger = logging.getLogger(__name__)
 if not logger.handlers:
     handler = logging.StreamHandler()
     formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
     handler.setFormatter(formatter)
     logger.addHandler(handler)
@@ -63,9 +63,8 @@ class Cme:
         """
         Path.cwd()
         ini = Path(ini)
-        self.project_dir_depth = 10 #TODO: aquire programmatically
         self.ini = ini
-        self.exec_path = run_path
+        self.exec_path = Path(run_path)
         self.paths_df, paths = read_ini(ini)
         self.in_path = Path(run_path) / find_var(paths, "input")
         # Lets get the type of input that we are using
@@ -243,8 +242,8 @@ class Cme:
 
         # Lets put together our CME run command
         params = [str(ex_p)]
-        params.append(f"--home={str(self.exec_path)}")
-        params.append("--yaml")
+        # params.append(f"--home={str(self.exec_path)}")
+        # params.append("--yaml")
         try:
             with chdir(self.exec_path):
                 completed_process = subprocess.Popen(params, shell=False)
@@ -289,7 +288,16 @@ class Cme:
 
     def retrieve_log(self):
         """Find the log file and save its contents along with any errors or warnings"""
-        level = int(self.find_config("Content of log file"))
+        # Try YAML format first, then fall back to .dat format
+        try:
+            level = int(self.find_config("log_file_detail"))
+        except KeyError:
+            try:
+                level = int(self.find_config("Content of log file"))
+            except KeyError:
+                logger.warning("Could not find log file detail setting in config")
+                level = 1  # Default to minimal logging
+
         dir_path = self.out_path
         found_f = glob.glob(str(dir_path / "*.log"))
         if type(found_f) == list:
@@ -304,19 +312,17 @@ class Cme:
     def return_rescue(self):
         """Use this to print a coloured summery of any errors in the log file if cme crashed"""
         # Check if we have crash information available
-        if not hasattr(self, 'crashed'):
+        if not hasattr(self, "crashed"):
             return
 
-        if not hasattr(self, 'errors') or not hasattr(self, 'warnings'):
+        if not hasattr(self, "errors") or not hasattr(self, "warnings"):
             logger.warning("Log file information not available")
             return
 
         if self.crashed:
             print("")
             er = (
-                "\n".join(
-                    "ln{!r}: {!r},".format(k, v) for k, v in self.errors.items()
-                )
+                "\n".join("ln{!r}: {!r},".format(k, v) for k, v in self.errors.items())
                 + "\n"
             )
             wa = (
@@ -342,14 +348,11 @@ class Cme:
         else:
             print("Everything seemed to go okay my end!")
 
-    def preflight_checks(self, depth=9):
+    def preflight_checks(self):
         """This can be run to aid the user in setting up a coastalMe run
 
-        Args:
-            depth (int, optional): This is the folder depth of the run TODO assign this programmatically. Defaults to 7.
-
         Raises:
-            ValueError: _description_
+            ValueError: If user provides invalid input
         """
         # Check if output folder exists
         if self.started:
@@ -360,10 +363,14 @@ class Cme:
         dir_path = self.in_path.parent
         # get list of files in input folder
         paths = glob.glob(str(dir_path / "*"))
-        files = [fi.split("/")[depth] for fi in paths]
+        # Extract just the filename from each path using Path
+        files = [Path(fi).name for fi in paths]
         # separate names and types
-        files_n = [fi.split(".")[0] for fi in files]
-        files_t = [fi.split(".")[1] for fi in files]
+        files_n = [fi.split(".")[0] if "." in fi else fi for fi in files]
+        files_t = [
+            fi.split(".")[1] if "." in fi and len(fi.split(".")) > 1 else ""
+            for fi in files
+        ]
 
         # check if basement file exists
         basement_n = self.find_config("basement").split("/")[-1].split(".")[0]
@@ -541,7 +548,7 @@ class Cme:
         """
         # Check if CME has been run
         if self.started:
-            crashed = getattr(self, 'crashed', False)
+            crashed = getattr(self, "crashed", False)
         else:
             return ValueError(
                 "Simulation not run, please run coastalme before using this command"
@@ -561,7 +568,9 @@ class Cme:
             self.success = False
             crashed = True
             t = t[:completed]
-            logger.warning(f"Found only {len(t)} timesteps (expected {len(t) + (len(t) - completed)})")
+            logger.warning(
+                f"Found only {len(t)} timesteps (expected {len(t) + (len(t) - completed)})"
+            )
         # how many different saves are we dealing with
         itters = len(t)
         if len(t) < 2:
@@ -574,8 +583,8 @@ class Cme:
             faux = t[-1] + delta
             t.append(faux)
         # Now we will collect all the raster and vector files in the output directory
-        df = collect_files(itters, path, "tif", depth=self.project_dir_depth)
-        df_v = collect_files(itters, path, "shp", depth=self.project_dir_depth)
+        df = collect_files(itters, path, "tif")
+        df_v = collect_files(itters, path, "shp")
 
         # test if the user requested the basement elevation output
         if "basement_elevation" not in vars:
@@ -646,15 +655,16 @@ def read_log(path, level, verbose=True):
     """read a coastalme log file
 
     Args:
-        path (string): path to output file including file name
+        path (string): path to output file including file name (or None if not found)
         level (int): the log level specified in the coastalme run
         verbose (bool, optional): do we want to print a one line summary of the log. Defaults to True.
 
     Returns:
-        _type_: _description_
+        tuple: (file_lines, error_lines_dict, warning_lines_dict)
     """
-    if not os.path.exists(path):
-        return FileNotFoundError
+    if path is None or not os.path.exists(path):
+        logger.warning("Log file not found")
+        return [], {}, {}
     with open(path, "r") as f:
         file = f.read().splitlines()
     if level >= 1:
@@ -791,4 +801,3 @@ def read_yaml(path):
         # now focus on the lines actually containing settings
         vars = dict(zip(list(df["key"].values), list(df["value"].values)))
     return df, vars
-
