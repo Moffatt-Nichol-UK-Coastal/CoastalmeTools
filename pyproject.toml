@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "CoastalmeTools"
-version = "0.0.5"
+version = "0.1.0"
 authors = [
   { name="Wilf Chun", email="wchun@moffattnichol.com" },
 ]
