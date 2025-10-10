@@ -24,17 +24,8 @@ from .hydro import wave_read
 # from .monitor import monitor_run
 from .tools import find_var
 
-# Configure module logger
+# Get module logger (inherits from package-level configuration)
 logger = logging.getLogger(__name__)
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
 
 
 class bcolors:

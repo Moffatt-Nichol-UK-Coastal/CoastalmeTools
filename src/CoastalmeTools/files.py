@@ -82,6 +82,12 @@ def vectors(t, df_v, path, vars_v):
     delta = t[1] - t[0]
     delta = delta - timedelta(hours=1)
 
+    # Track if we've seen CRS warnings
+    crs_warnings_seen = False
+
+    # Suppress pyogrio CRS warnings temporarily
+    import warnings
+
     for index, row in df_v.iterrows():
         count = 0
         gdf = None
@@ -105,8 +111,24 @@ def vectors(t, df_v, path, vars_v):
                 pass
             # shape.set_crs('epsg:27700')
             count += 1
-        gdf.to_file(v_path / "all_vect.gpkg", layer=row.variables, driver="GPKG")
+
+        # Suppress CRS warnings when writing, but track if any occur
+        with warnings.catch_warnings(record=True) as w:
+            warnings.filterwarnings('always', category=UserWarning)
+            gdf.to_file(v_path / "all_vect.gpkg", layer=row.variables, driver="GPKG")
+            # Check if any CRS warnings were raised
+            if any("crs" in str(warning.message).lower() for warning in w):
+                crs_warnings_seen = True
+
         logger.info(f"Done: {row.variables}")
+
+    # Log consolidated CRS warning once if any were seen
+    if crs_warnings_seen:
+        logger.warning(
+            "Some vector outputs were written without CRS information. "
+            "Output files may not have projection information defined."
+        )
+
     logger.info("Done: All Vectors")
 
 
