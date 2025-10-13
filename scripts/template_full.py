@@ -21,7 +21,10 @@ if platform.system() == "Darwin":
 elif platform.system() == "Linux":
     # Provide path of cme ini file
     # ini_file = r"/home/wilfc/CoastalME/in/Exploration/Scen017/cme.ini"
-    ini_file = r"/home/wilfchun/CoastalME/CoastalME_data_local/CSE/Thorpness/cme.ini"
+    ini_file = (
+        r"/home/wilfchun/CoastalME/CoastalME_data_local/CSE/Thorpness/cme.ini"
+        # r"/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Cliff2/cme.yaml"
+    )
     # Provide path where we want cme to run, this is the --home cmd ln arg
     run_path = r"/home/wilfchun/CoastalME/coastalme/"
     # Provide path of cme executable
@@ -30,18 +33,18 @@ elif platform.system() == "Linux":
 # Setup
 cme = Cme(ini_file, run_path)
 
-source_extent = get_project_extent(str(ini_file))
-print(source_extent)
-dest = Path("/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Cliff2/")
-cme = copy_project(
-    source_ini_path=ini_file,
-    dest_project_path=dest,
-    crop_bbox=(647310, 259950, 648742, 260600),  # Keep full extent
-    # target_cell_size=5.0,  # Change to 5m cells
-    target_cell_size=None,  # Change to 5m cells
-    resampling_method="bilinear",
-    verbose=True,
-)
+# source_extent = get_project_extent(str(ini_file))
+# print(source_extent)
+# dest = Path("/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Cliff2/")
+# cme = copy_project(
+#     source_ini_path=ini_file,
+#     dest_project_path=dest,
+#     crop_bbox=(647310, 259950, 648742, 260600),  # Keep full extent
+#     # target_cell_size=5.0,  # Change to 5m cells
+#     target_cell_size=None,  # Change to 5m cells
+#     resampling_method="bilinear",
+#     verbose=True,
+# )
 
 cme.tide_check()
 # check if were good to run, also do we want to do quick start
