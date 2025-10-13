@@ -1,5 +1,7 @@
 from CoastalmeTools import Cme
+from CoastalmeTools.project_tools import copy_project, get_project_extent
 import platform
+from pathlib import Path
 
 
 if platform.system() == "Darwin":
@@ -19,7 +21,7 @@ if platform.system() == "Darwin":
 elif platform.system() == "Linux":
     # Provide path of cme ini file
     # ini_file = r"/home/wilfc/CoastalME/in/Exploration/Scen017/cme.ini"
-    ini_file = r"/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Cliff/cme.ini"
+    ini_file = r"/home/wilfchun/CoastalME/CoastalME_data_local/CSE/Thorpness/cme.ini"
     # Provide path where we want cme to run, this is the --home cmd ln arg
     run_path = r"/home/wilfchun/CoastalME/coastalme/"
     # Provide path of cme executable
@@ -28,12 +30,25 @@ elif platform.system() == "Linux":
 # Setup
 cme = Cme(ini_file, run_path)
 
-# cme.tide_check()
+source_extent = get_project_extent(str(ini_file))
+print(source_extent)
+dest = Path("/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Cliff2/")
+cme = copy_project(
+    source_ini_path=ini_file,
+    dest_project_path=dest,
+    crop_bbox=(647310, 259950, 648742, 260600),  # Keep full extent
+    # target_cell_size=5.0,  # Change to 5m cells
+    target_cell_size=None,  # Change to 5m cells
+    resampling_method="bilinear",
+    verbose=True,
+)
+
+cme.tide_check()
 # check if were good to run, also do we want to do quick start
-# cme.preflight_checks(depth=10)
+# cme.preflight_checks()
 
 # Build t0
-# cme.build_model()
+cme.build_model()
 
 # Now we run cme
 cme.run(cme_path)
@@ -69,7 +84,7 @@ try:
     results = cme.collate_results(vars=out_vars, vars_v=out_vars_v)
 except ValueError as W:
     print(W)
-    cme.return_rescue()
+    # cme.return_rescue()
 
 # cme.return_rescue()
 # All Done

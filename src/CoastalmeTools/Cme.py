@@ -231,7 +231,10 @@ class Cme:
             except FileNotFoundError:
                 pass
             os.makedirs(self.out_path)
-        shutil.copy(self.ini, self.exec_path)
+        try:
+            shutil.copy(self.ini, self.exec_path)
+        except shutil.SameFileError:
+            pass
 
         # Lets put together our CME run command
         params = [str(ex_p)]
@@ -445,15 +448,17 @@ class Cme:
                 except FileNotFoundError:
                     print("No wave file found")
 
-        # Only save if using .dat format - YAML files cannot be safely written with write_ini
+        # Save changes to config file
         if self.conf_type == "dat":
             write_ini(self.in_path, self.config_df)
             print("Saved input file")
+        elif self.conf_type == "yaml":
+            write_yaml(self.in_path, self.config_df)
+            print("Saved YAML configuration file")
         else:
             logger.warning(
-                f"Cannot save changes to {self.conf_type} file. "
-                "write_ini() only supports .dat format. "
-                "YAML file modifications are not persisted to prevent corruption."
+                f"Unknown config type: {self.conf_type}. "
+                "Changes were not saved to file."
             )
 
     def find_config(self, query):
@@ -468,16 +473,16 @@ class Cme:
         return find_var(self.config, query)
 
     def update_config(self, df, query, value, save=False):
-        """Use this to update the internal settings of coastaleme, note that this doesn't, by default save this out to the .dat file
+        """Use this to update the internal settings of coastaleme, note that this doesn't, by default save this out to the config file
 
         Args:
             df (pandas dataframe): this is the settings dataframe containing the setting we are going to change
             query (string): this is a string that will be matched in the settings file
             value (str): This is the value that the setting will be changed to
-            save (bool): if True, immediately write changes to file (only works for .dat files)
+            save (bool): if True, immediately write changes to file (works for both .dat and .yaml)
 
         Raises:
-            ValueError: _description_
+            ValueError: If query matches multiple entries or no entries
         """
         if type(value) != str:
             value = str(value)
@@ -492,10 +497,11 @@ class Cme:
         if save:
             if self.conf_type == "dat":
                 write_ini(self.in_path, df)
+            elif self.conf_type == "yaml":
+                write_yaml(self.in_path, df)
             else:
                 logger.warning(
-                    f"Cannot save changes to {self.conf_type} file. "
-                    "write_ini() only supports .dat format. "
+                    f"Unknown config type: {self.conf_type}. "
                     "Changes are in memory only."
                 )
 
@@ -811,3 +817,117 @@ def read_yaml(path):
         # now focus on the lines actually containing settings
         vars = dict(zip(list(df["key"].values), list(df["value"].values)))
     return df, vars
+
+
+def write_yaml(path, df):
+    """Write coastalme configuration to YAML file
+
+    This function reconstructs the nested YAML structure from the flattened
+    DataFrame format created by read_yaml(). It intelligently detects compound
+    keys (e.g., "median_sizes_fine") and rebuilds nested dictionaries.
+
+    Args:
+        path (str or Path): save path (including file name)
+        df (pandas DataFrame): dataframe with 'section', 'key', 'value' columns
+            Keys may be simple (e.g., 'log_file_detail') or compound
+            (e.g., 'median_sizes_fine') indicating nested structure
+
+    Raises:
+        ValueError: If DataFrame format is invalid
+
+    Example:
+        >>> df has rows like:
+        section="sediment_and_erosion", key="median_sizes_fine", value=0.0
+        section="sediment_and_erosion", key="median_sizes_sand", value=0.0
+        >>> Reconstructs as:
+        sediment_and_erosion:
+          median_sizes:
+            fine: 0.0
+            sand: 0.0
+    """
+    if not {"section", "key", "value"}.issubset(df.columns):
+        raise ValueError("DataFrame must contain 'section', 'key', and 'value' columns")
+
+    # Build nested dictionary structure
+    config = {}
+
+    # First pass: identify which keys should be nested
+    # Group by section and look for keys with common prefixes
+    nested_keys = {}  # {(section, parent_key): [child_keys]}
+
+    for section in df["section"].unique():
+        section_rows = df[df["section"] == section]
+
+        # Look for keys that could be nested (contain underscore)
+        for _, row in section_rows.iterrows():
+            key = row["key"]
+            if pd.isna(key) or key == "":
+                continue
+
+            if "_" in key:
+                # Split on first underscore to get potential parent
+                parts = key.split("_", 1)
+                parent_key = parts[0]
+                child_key = parts[1]
+
+                # Count how many keys share this parent prefix
+                same_parent = section_rows[
+                    section_rows["key"].str.startswith(parent_key + "_", na=False)
+                ]
+
+                # If multiple keys share prefix, treat as nested
+                if len(same_parent) > 1:
+                    key_tuple = (section, parent_key)
+                    if key_tuple not in nested_keys:
+                        nested_keys[key_tuple] = []
+                    nested_keys[key_tuple].append(child_key)
+
+    # Second pass: build the config dictionary
+    for _, row in df.iterrows():
+        section = row["section"]
+        key = row["key"]
+        value = row["value"]
+
+        # Skip invalid rows
+        if pd.isna(key) or key == "":
+            continue
+
+        # Handle flat structure (no section - top level)
+        if section == "" or pd.isna(section):
+            config[key] = value
+            continue
+
+        # Ensure section exists
+        if section not in config:
+            config[section] = {}
+
+        # Check if this key should be nested
+        is_nested = False
+        if "_" in key:
+            parent_key = key.split("_", 1)[0]
+            child_key = key.split("_", 1)[1]
+
+            if (section, parent_key) in nested_keys:
+                # This is a nested key
+                is_nested = True
+                if parent_key not in config[section]:
+                    config[section][parent_key] = {}
+                config[section][parent_key][child_key] = value
+
+        if not is_nested:
+            # Simple key under section
+            config[section][key] = value
+
+    # Write YAML with nice formatting
+    with open(str(path), "w", encoding="utf-8") as f:
+        yaml.safe_dump(
+            config,
+            f,
+            default_flow_style=False,
+            sort_keys=False,
+            allow_unicode=True,
+            width=120,
+            indent=2,
+        )
+
+    logger.info(f"YAML configuration written to {path}")

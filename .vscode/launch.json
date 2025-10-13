@@ -13,7 +13,7 @@
             "name": "Python Debugger: test all",
             "type": "debugpy",
             "request": "launch",
-            "program": "/home/wilfc/CoastalmeTools/scripts/test_full.py",
+            "program": "/home/wilfchun/CoastalME/CoastalmeTools/scripts/template_full.py",
             "console": "integratedTerminal",
             "justMyCode": false
         }

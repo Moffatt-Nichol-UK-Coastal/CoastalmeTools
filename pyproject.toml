@@ -10,7 +10,7 @@ authors = [
 ]
 readme = "README.md"
 requires-python = ">=3.9"
-license = { file = "LICENSE.txt" }
+license = { file = "LICENSE" }
 dependencies = [
     "bokeh>=3.4.0",
     "cfgrib>=0.9.14.1",
