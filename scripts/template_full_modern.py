@@ -56,7 +56,14 @@ def get_platform_config():
     elif platform.system() == "Linux":
         # Linux paths
         ini_file = Path(
-            "/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Cliff/cme.yaml"
+            # CSE
+            # "/home/wilfchun/CoastalME/CoastalME_data_local/CSE/Thorpness/cme.yaml"
+            # "/home/wilfchun/CoastalME/CoastalME_data_local/CSE/Southwold/cme.yaml"
+            "/home/wilfchun/CoastalME/CoastalME_data_local/CSE/Winterbourne_Hemsby/cme.yaml"
+            # "/home/wilfchun/CoastalME/CoastalME_data_local/CSE/CortonPakefield/cme.yaml"
+            # Typology
+            # "/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Cliff/cme.yaml"
+            # "/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Dune/cme.yaml"
         )
         run_path = Path("/home/wilfchun/CoastalME/coastalme/")
         cme_path = Path("/home/wilfchun/CoastalME/coastalme/cme")
@@ -177,11 +184,11 @@ def main():
     source_extent = get_project_extent(str(ini_file))
     logger.info(f"Source extent: {source_extent}")
 
-    dest = Path("/path/to/destination/project/")
+    dest = Path("/home/wilfchun/CoastalME/CoastalME_data_local/temp/crop/")
     cme = copy_project(
         source_ini_path=ini_file,
         dest_project_path=dest,
-        crop_bbox=(647310, 259950, 648742, 260600),  # Optional cropping
+        crop_bbox=(653696, 289701, 656062, 297949),  # Optional cropping
         target_cell_size=5.0,  # Optional resampling to 5m cells
         resampling_method="bilinear",
         verbose=True,
@@ -241,14 +248,13 @@ def main():
     return_code = cme.run(cme_path)
 
     # Check if simulation succeeded
-    if return_code == 0:
-        logger.info("✓ Simulation completed successfully")
-    else:
-        logger.error(f"✗ Simulation failed with return code: {return_code}")
-        logger.info("\nError Summary:")
-        cme.return_rescue()
-        # return return_code
-        pass
+    # if return_code == 0:
+    #     logger.info("✓ Simulation completed successfully")
+    # else:
+    #     logger.error(f"✗ Simulation failed with return code: {return_code}")
+    #     logger.info("\nError Summary:")
+    #     cme.return_rescue()
+    #     return return_code
 
     # ========================================================================
     # Collate Results
