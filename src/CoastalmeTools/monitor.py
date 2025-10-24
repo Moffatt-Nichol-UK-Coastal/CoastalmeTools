@@ -369,4 +369,11 @@ def parse_out(path, start_time):
     df["CumBeachErod"] = df['actual_beach_erod_area_avg'].cumsum()
     df["CumBeachDepo"] = df['actual_beach_depo_area_avg'].cumsum()
 
+    # Forward-fill NaN values to create continuous lines in plots
+    # When a timestep has no data, the previous value is carried forward
+    df["CumCliffErod"] = df["CumCliffErod"].ffill()
+    df["CumCliffDepo"] = df["CumCliffDepo"].ffill()
+    df["CumBeachErod"] = df["CumBeachErod"].ffill()
+    df["CumBeachDepo"] = df["CumBeachDepo"].ffill()
+
     return df
