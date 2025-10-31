@@ -49,23 +49,59 @@ class Cme:
         """Sets up an object to work with a coastalMe run
 
         Args:
-            ini (path, optional): path to cme ini file. Defaults to None.
+            ini (path, optional): path to cme ini/yaml file. Defaults to None.
+                Can be either:
+                - .ini file (legacy DAT format with key : value pairs)
+                - .yaml file (modern YAML format with nested structure)
             run_path (path where cme is run, this is equivalent to the --home command line argument, optional): _description_. Defaults to None.
         """
         Path.cwd()
         ini = Path(ini)
         self.ini = ini
         self.exec_path = Path(run_path)
-        self.paths_df, paths = read_ini(ini)
-        self.in_path = Path(run_path) / find_var(paths, "input")
+
+        # Detect INI file format (.ini with DAT format or .yaml)
+        if ini.suffix == ".yaml" or ini.suffix == ".yml":
+            self.ini_type = "yaml"
+            self.paths_df, paths = read_yaml(ini)
+        else:
+            # Default to .ini (DAT format)
+            self.ini_type = "dat"
+            self.paths_df, paths = read_ini(ini)
+
+        # Get input path - handle different key names for YAML vs DAT
+        try:
+            input_key = find_var(paths, "input")
+        except KeyError:
+            # Try YAML format key names
+            try:
+                input_key = find_var(paths, "input_data_file")
+            except KeyError:
+                raise ValueError("Could not find input/input_data_file key in ini file")
+
+        self.in_path = Path(run_path) / input_key if not Path(input_key).is_absolute() else Path(input_key)
+
         # Lets get the type of input that we are using
         if self.in_path.suffix == ".dat":
             self.conf_type = "dat"
             self.config_df, self.config = read_ini(self.in_path)
-        elif self.in_path.suffix == ".yaml":
+        elif self.in_path.suffix == ".yaml" or self.in_path.suffix == ".yml":
             self.conf_type = "yaml"
             self.config_df, self.config = read_yaml(self.in_path)
-        self.out_path = Path(run_path) / find_var(paths, "output")
+        else:
+            raise ValueError(f"Unsupported config format: {self.in_path.suffix}")
+
+        # Get output path - handle different key names
+        try:
+            output_key = find_var(paths, "output")
+        except KeyError:
+            try:
+                output_key = find_var(paths, "output_path")
+            except KeyError:
+                raise ValueError("Could not find output/output_path key in ini file")
+
+        self.out_path = Path(run_path) / output_key if not Path(output_key).is_absolute() else Path(output_key)
+
         if os.path.exists(self.out_path):
             self.started = True
         else:
