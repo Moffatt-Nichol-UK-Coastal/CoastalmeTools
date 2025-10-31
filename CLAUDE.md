@@ -1,1 +1,0 @@
-/home/wilfchun/llm-memory/CoastalME/CoastalmeTools/CLAUDE.md
