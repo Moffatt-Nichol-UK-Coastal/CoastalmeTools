@@ -15,7 +15,7 @@ import matplotlib
 import yaml
 from bokeh.command.bootstrap import main
 
-matplotlib.use("qtagg")
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from .files import collect_files, vectors, rasters, profiles, file_search
 from .xml2raster import genBase
