@@ -550,7 +550,7 @@ class Cme:
         start = find_var(self.config, "start date")
         duration = find_var(self.config, "Duration of simulation")
         # t_steps = find_var(self.config, "Timestep ", case=True)
-        steps_p = find_var(self.config, "save times")
+        steps_p = find_var(self.config, ["Save times"], case=True)
 
         start = datetime.strptime(start, "%H-%M-%S %m/%d/%Y")
         duration = timedelta(seconds=timeparse(duration))
