@@ -1,10 +1,13 @@
-{ pkgs, ... }:
+{ pkgs, devenv-zsh, ... }:
 
 {
   packages = [
     pkgs.python3
     pkgs.python3Packages.debugpy
   ];
+
+  imports = [ devenv-zsh.plugin ];
+  zsh.enable = true;
 
   languages.python = {
     enable = true;
@@ -26,6 +29,5 @@
     ''
       # . .devenv/state/venv/bin/activate
       # hello
-      zsh
     '';
 }

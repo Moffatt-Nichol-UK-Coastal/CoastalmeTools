@@ -122,19 +122,37 @@ class Cme:
         plt.savefig(w_path)
         pass
 
-    def wave_check(self, invert=False, grib_read=None, cco_read=None, head_lines=4):
+    def wave_check(self, invert=False, correct=0, grib_read=None, cco_read=None, head_lines=None):
         """This plots a wave rose of the input wave files, there is also an ability to make minor adjustments to the wave data
             NOTE in cme: Deep water wave orientation in input CRS: this is the oceanographic convention
             i.e. direction TOWARDS which the waves move (in degrees clockwise from north)
 
         Args:
-            invert (bool, optional): _description_. Defaults to False.
+            invert (bool, optional): Invert wave direction by 180 degrees. Defaults to False.
+            correct (float, optional): Correction angle to add to wave orientation. Defaults to 0.
+            grib_read (bool, optional): Read from GRIB file format. Defaults to None.
+            cco_read (bool, optional): Read from CCO text format. Defaults to None.
+            head_lines (int, optional): Number of header lines. If None, auto-detects from file. Defaults to None.
         """
         waves_p = self.in_path.parent / self.find_config("wave height time series")
         out_suf = ""
+
         with open(waves_p, "r") as f:
             file = f.read().splitlines()
-            header = file[0:head_lines]
+
+        # Auto-detect header lines if not specified
+        if head_lines is None:
+            head_lines = 0
+            for line in file:
+                # Stop counting when we hit a line that looks like data (starts with digit or negative sign)
+                stripped = line.strip()
+                if stripped and not stripped.startswith('#') and not stripped.startswith(';'):
+                    # Check if it looks like a data line (starts with number)
+                    if stripped[0].isdigit() or stripped[0] == '-':
+                        break
+                head_lines += 1
+
+        header = file[0:head_lines]
 
         lines = range(len(header))
         df = pd.DataFrame(header, index=lines, columns=["string"])
@@ -156,7 +174,10 @@ class Cme:
         vars = dict(
             zip(list(df.loc[mask, "key"].values), list(df.loc[mask, "value"].values))
         )
-        cco_read = True
+        # cco_read = True
+
+        # Initialize has_hours flag for format preservation
+        has_hours = False
 
         if grib_read:
             dir_path = self.in_path.parent
@@ -174,22 +195,23 @@ class Cme:
 
             with open(waves_p, mode="wt", encoding="utf-8") as f:
                 f.write("\n".join(out_lines))
+            waves_data = waves[["height", "orientation", "period"]]
         elif cco_read:
             ts = 6
             cco_path = file_search(self.in_path.parent, "wave", "txt")
             if cco_path is None:
                 raise FileNotFoundError("No wave data file found matching 'wave*.txt'")
-            waves = pd.read_csv(
+            waves_data = pd.read_csv(
                 cco_path,
                 sep="\t",
                 # header=True,
                 # names=["height", "orientation", "period"],
                 # skiprows=head_lines - 1,
             )
-            waves = waves[
+            waves_data = waves_data[
                 ["Date/Time (GMT)", "Hs (Hm0)(m)", "Dirp (degrees)", "Tp (s)"]
             ]
-            waves = waves.rename(
+            waves_data = waves_data.rename(
                 columns={
                     "Date/Time (GMT)": "time",
                     "Hs (Hm0)(m)": "height",
@@ -197,33 +219,77 @@ class Cme:
                     "Tp (s)": "period",
                 }
             )
-            waves["time"] = pd.to_datetime(waves["time"])
-            waves = waves.astype(
+            waves_data["time"] = pd.to_datetime(waves_data["time"])
+            waves_data = waves_data.astype(
                 {
                     "height": np.float64,
                     "orientation": np.float64,
                     "period": np.float64,
                 }
             )
-            waves = waves.set_index("time")
-            mask = np.abs(waves) > 900
-            waves[mask] = np.nan
-            waves = waves.dropna()
-            waves = waves.asfreq(f"{ts}h", method="bfill")
-
+            waves_data = waves_data.set_index("time")
+            mask = np.abs(waves_data) > 900
+            waves_data[mask] = np.nan
+            waves_data = waves_data.dropna()
+            waves_data = waves_data.asfreq(f"{ts}h", method="bfill")
+            waves_data = waves_data[["height", "orientation", "period"]]
         else:
-            waves = pd.read_csv(
+            # Read wave CSV file - handles both old and new formats
+            # New format has trailing commas, old format may have spaces
+            waves_data = pd.read_csv(
                 waves_p,
                 sep=",",
-                header=0,
-                names=["height", "orientation", "period"],
-                skiprows=head_lines - 1,
+                index_col=False,
+                header=None,
+                names=["hours", "height", "orientation", "period"],
+                skiprows=head_lines,
+                skipinitialspace=True,  # Handle spaces after commas
+                # encoding_errors='strict',
+                # on_bad_lines='skip'
             )
+            # Keep hours column if it exists, otherwise drop extra columns
+            # if "hours" in waves_data.columns and not waves_data["hours"].isna().all():
+            #     waves_data = waves_data[["hours", "height", "orientation", "period"]]
+            #     has_hours = True
+            # else:
+            #     waves_data = waves[["height", "orientation", "period"]]
+            #     has_hours = False
+
+        if correct != 0:
+            waves_data.orientation = waves_data.orientation + correct
+            mask = waves_data.orientation > 360
+            waves_data.loc[mask, "orientation"] = waves_data.orientation - 360
+            mask = waves_data.orientation < 0
+            waves_data.loc[mask, "orientation"] = waves_data.orientation + 360
+
+            # Write back with format preservation
+            if has_hours:
+                # New format: with hours column and trailing commas
+                waves_data.to_csv(waves_p, sep=",", header=False, index=False, line_terminator=',\n')
+            else:
+                # Old format: without hours column
+                waves_data.to_csv(waves_p, sep=",", header=False, index=False)
+
+            with open(waves_p, "r") as f:
+                temp = f.read().splitlines()
+            out_lines = header + temp
+
+            with open(waves_p, mode="wt", encoding="utf-8") as f:
+                f.write("\n".join(out_lines))
+
+            out_suf = "_cor"
         if invert:
-            waves.orientation = waves.orientation + 180
-            mask = waves.orientation > 360
-            waves.loc[mask, "orientation"] = waves.orientation - 360
-            waves.to_csv(waves_p, sep=",", header=0, index=False)
+            waves_data.orientation = waves_data.orientation + 180
+            mask = waves_data.orientation > 360
+            waves_data.loc[mask, "orientation"] = waves_data.orientation - 360
+
+            # Write back with format preservation
+            if has_hours:
+                # New format: with hours column and trailing commas
+                waves_data.to_csv(waves_p, sep=",", header=False, index=False, line_terminator=',\n')
+            else:
+                # Old format: without hours column
+                waves_data.to_csv(waves_p, sep=",", header=False, index=False)
 
             with open(waves_p, "r") as f:
                 temp = f.read().splitlines()
@@ -236,7 +302,7 @@ class Cme:
 
         w_path = self.in_path.parent / f"wave_rose{out_suf}.png"
         ax = WindroseAxes.from_ax()
-        ax.bar(waves.orientation, waves.height, normed=True, opening=0.8)
+        ax.bar(waves_data.orientation, waves_data.height, normed=True, opening=0.8)
         ax.set_legend()
         plt.savefig(w_path)
 

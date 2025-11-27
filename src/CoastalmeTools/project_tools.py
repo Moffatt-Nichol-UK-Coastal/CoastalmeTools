@@ -14,7 +14,7 @@ from typing import Dict, List, Tuple, Optional, Union
 import shutil
 import numpy as np
 import rasterio
-from rasterio.windows import Window, from_bounds
+from rasterio.windows import from_bounds
 from rasterio.transform import Affine
 from rasterio.enums import Resampling
 import geopandas as gpd

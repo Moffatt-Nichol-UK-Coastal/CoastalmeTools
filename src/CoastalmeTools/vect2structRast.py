@@ -3,7 +3,7 @@ import geopandas as gpd
 import rasterio as rio
 from pathlib import Path
 from pathlib import PosixPath
-from shapely import LineString, Point, Polygon, BufferCapStyle, BufferJoinStyle
+from shapely import Polygon
 from rasterio.features import rasterize
 import matplotlib.pyplot as plt
 
@@ -59,7 +59,7 @@ def genTemplate(geoRow):
         pass
     elif geom.geom_type == 'MultiLineString':
         area = geom.buffer(width)
-    
+
     cat = geoRow['struct_type']
     if cat in ['groyne', 'wall', 'breakwater']:
         cat = 1
@@ -68,7 +68,7 @@ def genTemplate(geoRow):
     cat = np.int16(cat)
 
     elev = geoRow['elev']
-    
+
     return (area, cat, elev)
 
 def shape2rast(templates, extent, atrib, height_adjust=False):
@@ -81,7 +81,7 @@ def shape2rast(templates, extent, atrib, height_adjust=False):
     y_size = int(abs(extent.bounds.loc[0,'miny'] - extent.bounds.loc[0,'maxy']))
     gdf = gpd.GeoDataFrame(templates, columns=['geometry','type','elev'])
     features = [(geom, value) for geom, value in zip(gdf.geometry, gdf[atrib])]
-    
+
     raster = rasterize(
         features,
         out_shape=(y_size, x_size),
@@ -94,7 +94,7 @@ def shape2rast(templates, extent, atrib, height_adjust=False):
         studyTop = loadStudyElev(path, x_size, y_size)
         raster = raster - studyTop
         raster = raster.clip(min=0)
-    
+
     plt.imshow(raster)
     # plt.gca().invert_yaxis()
 
@@ -134,7 +134,7 @@ def vect2structRast(vectPath, extent):
     tmpList = []
     for feat, geom in vect_gpd.iterrows():
         tmpList.append(genTemplate(geom))
-    
+
     rasterList = {}
     rasterList['intervention_height'] = shape2rast(tmpList, extent, atrib='elev', height_adjust=True)
     rasterList['intervention_class'] = shape2rast(tmpList, extent, atrib='type')

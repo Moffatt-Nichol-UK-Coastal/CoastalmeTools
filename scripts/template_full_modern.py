@@ -59,14 +59,15 @@ def get_platform_config():
             # CSE
             # "/home/wilfchun/CoastalME/CoastalME_data_local/CSE/Thorpness/cme.yaml"
             # "/home/wilfchun/CoastalME/CoastalME_data_local/CSE/Southwold/cme.yaml"
-            "/home/wilfchun/CoastalME/CoastalME_data_local/CSE/Winterbourne_Hemsby/cme.yaml"
+            # "/home/wilfchun/CoastalME/CoastalME_data_local/CSE/Winterbourne_Hemsby/cme.yaml"
             # "/home/wilfchun/CoastalME/CoastalME_data_local/CSE/CortonPakefield/cme.yaml"
             # Typology
             # "/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Cliff/cme.yaml"
-            # "/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Dune/cme.yaml"
+            "/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Dune/cme.yaml"
+            # "/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Dune_hd/cme.yaml"
         )
-        run_path = Path("/home/wilfchun/CoastalME/coastalme/")
-        cme_path = Path("/home/wilfchun/CoastalME/coastalme/cme")
+        run_path = Path("/home/wilfchun/CoastalME/coastalmemn/")
+        cme_path = Path("/home/wilfchun/CoastalME/coastalmemn/cme")
 
     else:
         raise OSError(f"Unsupported platform: {platform.system()}")
@@ -177,6 +178,10 @@ def main():
     # ========================================================================
     # Uncomment to copy/crop/resample project before running
     """
+    dune_crop = (650417,274952,651927,275692)
+    dune_crop = (650417,274952,651927,275692)
+    cliff_crop=(653696, 289701, 656062, 297949)  # Need to check
+
     logger.info("\n" + "=" * 70)
     logger.info("Project Manipulation")
     logger.info("=" * 70)
@@ -188,8 +193,8 @@ def main():
     cme = copy_project(
         source_ini_path=ini_file,
         dest_project_path=dest,
-        crop_bbox=(653696, 289701, 656062, 297949),  # Optional cropping
-        target_cell_size=5.0,  # Optional resampling to 5m cells
+        crop_bbox=dune_crop,  # Optional cropping
+        # target_cell_size=5.0,  # Optional resampling to 5m cells
         resampling_method="bilinear",
         verbose=True,
     )
@@ -229,11 +234,12 @@ def main():
     # Optional: Interactive preflight checks
     # Uncomment to enable quick-start model generation, wave rose plots, etc.
     # cme.preflight_checks()
+    # cme.wave_check(invert=True)
 
     # Build initial conditions (t=0)
-    logger.info("Building initial model state (t=0)...")
-    cme.build_model()
-    logger.info("✓ Initial state built")
+    # logger.info("Building initial model state (t=0)...")
+    # cme.build_model()
+    # logger.info("✓ Initial state built")
 
     # ========================================================================
     # Run Simulation
@@ -273,8 +279,10 @@ def main():
         "total_actual_beach_erosion",
         "total_actual_platform_erosion",
         "total_cliff_collapse",
+        "total_avalanche_deposition",
         "wave_height",
         "cliff",
+        "dirty_cells"
     ]
 
     # Define vector outputs to include in GeoPackage
@@ -290,6 +298,7 @@ def main():
         "wave_energy",
         "wave_setup",
         "storm_surge",
+        "wave_transect_points"
     ]
 
     logger.info(f"Raster variables: {len(raster_vars)}")
