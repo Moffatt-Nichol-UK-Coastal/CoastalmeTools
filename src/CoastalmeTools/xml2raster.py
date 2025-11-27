@@ -1,6 +1,5 @@
 import numpy as np
 import rasterio
-from pathlib import Path
 from lxml import etree
 from scipy.interpolate import griddata
 from rasterio.enums import Resampling

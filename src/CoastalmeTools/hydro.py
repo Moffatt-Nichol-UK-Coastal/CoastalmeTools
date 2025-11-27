@@ -1,6 +1,5 @@
 import xarray as xr
 import geopandas as gpd
-import pandas as pd
 
 def wave_read(path, t_step=6):
     """This reads in a grib file (currently focused around ECMWF hindcast data)
@@ -15,7 +14,7 @@ def wave_read(path, t_step=6):
     Returns:
         tuple: lat/long of wave data point
         DataFrame: wave data at desired timestep, with time index and height direction and period columns
-    """ 
+    """
     ds = xr.open_dataset(path, engine="cfgrib")
     df = ds.to_dataframe()
     vars = list(ds)
@@ -33,7 +32,7 @@ def wave_read(path, t_step=6):
         pass
     else:
         raise ValueError("Grib file contains inconsistent time steps")
-    
+
     gdf = gdf.rename(columns={'mwd':'orientation', 'mwp':'period','swh':'height'})
     gdf_unfiltered = gdf
     gdf = gdf.resample(f'{t_step}h').first()

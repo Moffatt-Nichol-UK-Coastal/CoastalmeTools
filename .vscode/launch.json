@@ -2,20 +2,32 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: mac test all",
-            "type": "debugpy",
+            "name": "py: Static Model Gen",
+            "type": "python",
             "request": "launch",
-            "program": "/Users/wilfchun/Documents/GitHub/CoastalME/CoastalmeTools/scripts/template_full.py",
-            "console": "integratedTerminal",
+            "program": "/home/wilfchun/CoastalME/SurfaceModels/CreateSedThicknessModel_fast.py",
+            "args": ["--raster-folder", "/home/wilfchun/CoastalME/SurfaceModels/Thorpeness v10", "--csv-file", "Sediment_Fractions_HB.csv", "--output-folder", "/home/wilfchun/CoastalME/SurfaceModels/result_Thorpeness v10"],
             "justMyCode": false
         },
         {
-            "name": "Python Debugger: test all",
-            "type": "debugpy",
+            "name": "py: CME tools",
+            "type": "python",
             "request": "launch",
-            "program": "/home/wilfchun/CoastalME/CoastalmeTools/scripts/template_full.py",
-            "console": "integratedTerminal",
+            "program": "/home/wilfchun/CoastalME/CoastalmeTools/scripts/template_full_modern.py",
             "justMyCode": false
-        }
+        },
+        {
+            "name": "cpp: cme test (yaml)",
+            "type": "codelldb",
+            "request": "launch",
+            "cwd":"/home/wilfchun/CoastalME/coastalme/",
+            "program": "/home/wilfchun/CoastalME/coastalme/cme",
+            "args": ["--home=/home/wilfchun/CoastalME/coastalme/"],
+            "stopAtEntry": false,
+            "externalConsole": false,
+            "initCommands": [
+              "settings set target.process.thread.step-avoid-libraries /usr/include/c++:/usr/lib",
+            ]
+        },
     ]
 }
