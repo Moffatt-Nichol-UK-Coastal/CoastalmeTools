@@ -79,7 +79,11 @@ class Cme:
             except KeyError:
                 raise ValueError("Could not find input/input_data_file key in ini file")
 
-        self.in_path = Path(run_path) / input_key if not Path(input_key).is_absolute() else Path(input_key)
+        self.in_path = (
+            Path(run_path) / input_key
+            if not Path(input_key).is_absolute()
+            else Path(input_key)
+        )
 
         # Lets get the type of input that we are using
         if self.in_path.suffix == ".dat":
@@ -100,7 +104,11 @@ class Cme:
             except KeyError:
                 raise ValueError("Could not find output/output_path key in ini file")
 
-        self.out_path = Path(run_path) / output_key if not Path(output_key).is_absolute() else Path(output_key)
+        self.out_path = (
+            Path(run_path) / output_key
+            if not Path(output_key).is_absolute()
+            else Path(output_key)
+        )
 
         if os.path.exists(self.out_path):
             self.started = True
@@ -108,21 +116,49 @@ class Cme:
             self.started = False
 
     def tide_check(self, head_lines=9, t_step=6):
+        """Plot tide data from CSV file with 'hours' and 'tide level (m)' columns.
+
+        Args:
+            head_lines (int, optional): Deprecated, kept for backwards compatibility. Defaults to 9.
+            t_step (int, optional): Time step in hours for plotting. Defaults to 6.
+        """
         tides_p = self.in_path.parent / self.find_config("tide_data")
-        # with open(tides_p, 'r') as f:
-        # 	file = f.read().splitlines()
-        # 	header = file[0:head_lines]
         w_path = self.in_path.parent / "tides_plot.png"
-        tides = pd.read_csv(
-            tides_p, sep=",", header=0, names=["swl"]
-        )  # , skiprows=head_lines-1)
-        tides["times"] = pd.date_range("1990-1-1", periods=len(tides), freq="6h")
-        tides = tides.set_index("times", drop=True)
+
+        # Read CSV with new format: "hours,tide level (m)"
+        tides = pd.read_csv(tides_p, sep=",")
+
+        # Check if the new format columns exist
+        if "hours" in tides.columns and "tide level (m)" in tides.columns:
+            # New format: use hours column and rename tide level column
+            tides = tides.rename(columns={"tide level (m)": "swl"})
+            # Create datetime index from hours (assuming start date 1990-1-1)
+            tides["times"] = pd.to_timedelta(tides["hours"], unit="h") + pd.Timestamp(
+                "1990-1-1"
+            )
+            tides = tides.set_index("times", drop=True)[["swl"]]
+        else:
+            # Legacy format: single column, assume header=0
+            if len(tides.columns) == 1:
+                tides.columns = ["swl"]
+                tides["times"] = pd.date_range(
+                    "1990-1-1", periods=len(tides), freq=f"{t_step}h"
+                )
+                tides = tides.set_index("times", drop=True)
+            else:
+                raise ValueError(
+                    f"Unexpected tide file format. Expected 'hours,tide level (m)' or single column. Got columns: {tides.columns.tolist()}"
+                )
+
+        max_val = tides.swl.max()
+        min_val = tides.swl.min()
         tides.plot()
         plt.savefig(w_path)
-        pass
+        return max_val, min_val
 
-    def wave_check(self, invert=False, correct=0, grib_read=None, cco_read=None, head_lines=None):
+    def wave_check(
+        self, invert=False, correct=0, grib_read=None, cco_read=None, head_lines=None
+    ):
         """This plots a wave rose of the input wave files, there is also an ability to make minor adjustments to the wave data
             NOTE in cme: Deep water wave orientation in input CRS: this is the oceanographic convention
             i.e. direction TOWARDS which the waves move (in degrees clockwise from north)
@@ -146,9 +182,13 @@ class Cme:
             for line in file:
                 # Stop counting when we hit a line that looks like data (starts with digit or negative sign)
                 stripped = line.strip()
-                if stripped and not stripped.startswith('#') and not stripped.startswith(';'):
+                if (
+                    stripped
+                    and not stripped.startswith("#")
+                    and not stripped.startswith(";")
+                ):
                     # Check if it looks like a data line (starts with number)
-                    if stripped[0].isdigit() or stripped[0] == '-':
+                    if stripped[0].isdigit() or stripped[0] == "-":
                         break
                 head_lines += 1
 
@@ -241,12 +281,14 @@ class Cme:
                 sep=",",
                 index_col=False,
                 header=None,
+                na_values="NaN",
                 names=["hours", "height", "orientation", "period"],
                 skiprows=head_lines,
                 skipinitialspace=True,  # Handle spaces after commas
                 # encoding_errors='strict',
                 # on_bad_lines='skip'
             )
+            waves_data = waves_data.dropna()
             # Keep hours column if it exists, otherwise drop extra columns
             # if "hours" in waves_data.columns and not waves_data["hours"].isna().all():
             #     waves_data = waves_data[["hours", "height", "orientation", "period"]]
@@ -265,7 +307,9 @@ class Cme:
             # Write back with format preservation
             if has_hours:
                 # New format: with hours column and trailing commas
-                waves_data.to_csv(waves_p, sep=",", header=False, index=False, line_terminator=',\n')
+                waves_data.to_csv(
+                    waves_p, sep=",", header=False, index=False, line_terminator=",\n"
+                )
             else:
                 # Old format: without hours column
                 waves_data.to_csv(waves_p, sep=",", header=False, index=False)
@@ -286,7 +330,9 @@ class Cme:
             # Write back with format preservation
             if has_hours:
                 # New format: with hours column and trailing commas
-                waves_data.to_csv(waves_p, sep=",", header=False, index=False, line_terminator=',\n')
+                waves_data.to_csv(
+                    waves_p, sep=",", header=False, index=False, line_terminator=",\n"
+                )
             else:
                 # Old format: without hours column
                 waves_data.to_csv(waves_p, sep=",", header=False, index=False)
