@@ -665,9 +665,9 @@ class Cme:
             list: list of all save points in simulation time
         """
         start = find_var(self.config, "start date")
-        duration = find_var(self.config, "Duration of simulation")
+        duration = find_var(self.config, "duration")
         # t_steps = find_var(self.config, "Timestep ", case=True)
-        steps_p = find_var(self.config, ["Save times"], case=True)
+        steps_p = self.find_config("Save times")
 
         start = datetime.strptime(start, "%H-%M-%S %m/%d/%Y")
         duration = timedelta(seconds=timeparse(duration))

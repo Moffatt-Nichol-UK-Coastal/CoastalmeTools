@@ -15,6 +15,8 @@ from rasterio.errors import RasterioIOError
 import glob
 import pandas as pd
 from datetime import timedelta
+import shutil
+import xarray as xr
 
 # from Cme import *
 from netCDF4 import *
@@ -403,6 +405,61 @@ def rasters(t, df, path, vars, sed_top=True, crashed=False):
                     arr_flipped = np.flip(sumy[0], 0)
                     arr_flipped = np.where(np.isfinite(arr_flipped), arr_flipped, -9999.0)
                     temp_wa[count] = arr_flipped
+    
+    # Prune empty final timestep if detected (common with crashes)
+    prune_netcdf(s_path)
+
+
+def prune_netcdf(nc_path):
+    """
+    Checks if the last timestep of the NetCDF file is empty (all fill values/NaNs).
+    If so, removes it.
+    """
+    if not os.path.exists(nc_path):
+        return
+
+    tmp_path = None
+    try:
+        # Open dataset
+        with xr.open_dataset(nc_path) as ds:
+            if "time" not in ds.dims or ds.sizes["time"] < 2:
+                return
+
+            # Check variables that have 'time' dimension
+            time_vars = [v for v in ds.data_vars if "time" in ds[v].dims]
+            if not time_vars:
+                return
+
+            is_empty = True
+            for var in time_vars:
+                # Check last timestep
+                data = ds[var].isel(time=-1)
+                # Assuming fill values are NaN after loading
+                # Also check if all values are equal to -9999.0 (our fill value) just in case xarray didn't decode it
+                # But typically xarray handles _FillValue automatically
+                if not data.isnull().all():
+                    is_empty = False
+                    break
+            
+            if is_empty:
+                logger.info("Pruning empty final timestep from NetCDF...")
+                # Create pruned dataset
+                ds_pruned = ds.isel(time=slice(0, -1))
+                
+                # Save to temp file
+                tmp_path = str(nc_path) + ".tmp"
+                ds_pruned.to_netcdf(tmp_path)
+                
+        # Move temp file to original (outside context manager)
+        if tmp_path and os.path.exists(tmp_path):
+             shutil.move(tmp_path, nc_path)
+             logger.info("Pruning complete.")
+
+    except Exception as e:
+        logger.warning(f"Failed to prune NetCDF: {e}")
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
 
 
 def profiles(t, path):
