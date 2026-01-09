@@ -14,6 +14,7 @@ Usage:
 
 import platform
 import logging
+import shutil
 from pathlib import Path
 
 # Legacy API - still fully supported
@@ -62,9 +63,9 @@ def get_platform_config():
             # "/home/wilfchun/CoastalME/CoastalME_data_local/CSE/Winterbourne_Hemsby/cme.yaml"
             # "/home/wilfchun/CoastalME/CoastalME_data_local/CSE/CortonPakefield/cme.yaml"
             # Typology
-            "/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Cliff/cme.yaml"
+            # "/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Cliff/cme.yaml"
             # "/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Dune/cme.yaml"
-            # "/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Dune_hd/cme.yaml"
+            "/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Dune_hd/cme.yaml"
         )
         run_path = Path("/home/wilfchun/CoastalME/coastalmemn/")
         cme_path = Path("/home/wilfchun/CoastalME/coastalmemn/cme")
@@ -294,6 +295,8 @@ def main():
         "breaking_wave_height",
         "cliff_notch",
         "coast",
+        "coast_lower",
+        "coast_upper",
         "cliff_edge",
         "run_up",
         "coast_curvature",
@@ -315,7 +318,11 @@ def main():
 
         # Output file locations
         netcdf_file = cme.out_path / "all_vars.nc"
-        gpkg_file = cme.out_path / "all_vars.gpkg"
+        gpkg_file = cme.out_path / "all_vect.gpkg"
+
+        win_downloads = "/mnt/c/Users/wchun/Downloads/"
+        shutil.copy(netcdf_file, win_downloads)
+        shutil.copy(gpkg_file, win_downloads)
 
         if netcdf_file.exists():
             logger.info(f"  NetCDF: {netcdf_file}")
