@@ -121,6 +121,11 @@ class Cme:
         Args:
             head_lines (int, optional): Deprecated, kept for backwards compatibility. Defaults to 9.
             t_step (int, optional): Time step in hours for plotting. Defaults to 6.
+
+        Returns:
+            tuple[float, float]: A tuple containing:
+                - max_tide_level: The maximum tide level (meters).
+                - min_tide_level: The minimum tide level (meters).
         """
         tides_p = self.in_path.parent / self.find_config("tide_data")
         w_path = self.in_path.parent / "tides_plot.png"
