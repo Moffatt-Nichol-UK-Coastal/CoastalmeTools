@@ -62,8 +62,8 @@ def get_platform_config():
             # "/home/wilfchun/CoastalME/CoastalME_data_local/CSE/Winterbourne_Hemsby/cme.yaml"
             # "/home/wilfchun/CoastalME/CoastalME_data_local/CSE/CortonPakefield/cme.yaml"
             # Typology
-            # "/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Cliff/cme.yaml"
-            "/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Dune/cme.yaml"
+            "/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Cliff/cme.yaml"
+            # "/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Dune/cme.yaml"
             # "/home/wilfchun/CoastalME/CoastalME_data_local/Typology/Dune_hd/cme.yaml"
         )
         run_path = Path("/home/wilfchun/CoastalME/coastalmemn/")
@@ -226,8 +226,10 @@ def main():
     # Check tide data (generates plot)
     try:
         logger.info("Checking tide data...")
-        cme.tide_check()
+        max, min = cme.tide_check()
         logger.info("✓ Tide check complete")
+        logger.info(f"  Max tide level: {max}")
+        logger.info(f"  Min tide level: {min}")
     except Exception as e:
         logger.warning(f"Tide check failed: {e}")
 
@@ -235,6 +237,7 @@ def main():
     # Uncomment to enable quick-start model generation, wave rose plots, etc.
     # cme.preflight_checks()
     # cme.wave_check(invert=True)
+    cme.wave_check()
 
     # Build initial conditions (t=0)
     # logger.info("Building initial model state (t=0)...")
@@ -282,7 +285,8 @@ def main():
         "total_avalanche_deposition",
         "wave_height",
         "cliff",
-        "dirty_cells"
+        "dirty_cells",
+        "sediment_transport"
     ]
 
     # Define vector outputs to include in GeoPackage

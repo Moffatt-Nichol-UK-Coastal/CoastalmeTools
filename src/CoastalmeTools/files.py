@@ -146,14 +146,20 @@ def rasters(t, df, path, vars, sed_top=True, crashed=False):
     base = rasterio.open(base_p)
     if sed_top:
         cs = [
-            "cons_sed_coarse_layer_1",
-            "cons_sed_fine_layer_1",
-            "cons_sed_sand_layer_1",
+            # "cons_sed_coarse_layer_1",
+            # "cons_sed_fine_layer_1",
+            # "cons_sed_sand_layer_1",
+            "cons_sed_coarse",
+            "cons_sed_fine",
+            "cons_sed_sand",
         ]
         us = [
-            "uncons_sed_coarse_layer_1",
-            "uncons_sed_fine_layer_1",
-            "uncons_sed_sand_layer_1",
+            # "uncons_sed_coarse_layer_1",
+            # "uncons_sed_fine_layer_1",
+            # "uncons_sed_sand_layer_1",
+            "uncons_sed_coarse",
+            "uncons_sed_fine",
+            "uncons_sed_sand",
         ]
         sl = ["sea_depth"]
         wh = ["wave_height"]
